@@ -3,8 +3,8 @@
  * @description Cliente WebSocket nativo con reconexión automática para recibir eventos de AWS
  */
 
-import { CONFIG } from "./api.js?v=5";
-import { setIndicatorState } from "./ui.js?v=5";
+import { CONFIG } from "./api.js?v=6";
+import { setIndicatorState } from "./ui.js?v=6";
 
 export class VehicleWebSocket {
   constructor({ onEventCallback, onOpenCallback }) {

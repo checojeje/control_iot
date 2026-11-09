@@ -1,601 +1,854 @@
-/* ==========================================================================
-   DISEÑO PREMIUM COCKPIT IoT - CERO SCROLL (100dvh) Y SIN ESPACIOS VACÍOS
-   ========================================================================== */
+/**
+ * @file style.css
+ * @description Diseño Industrial Cockpit de Alto Impacto · Cero Scroll (PC, Celular Vertical y Celular Horizontal)
+ */
 
 :root {
-  --bg-dark: #090d14;
-  --card-bg: linear-gradient(160deg, rgba(22, 29, 43, 0.96) 0%, rgba(13, 18, 28, 0.98) 100%);
-  --card-border: rgba(56, 189, 248, 0.16);
-  --accent-cyan: #0dcaf0;
-  --accent-cyan-glow: rgba(13, 202, 240, 0.45);
-  --status-ok: #10b981;
-  --status-warn: #f59e0b;
-  --status-err: #ef4444;
-  --joystick-size: clamp(142px, 24.5dvh, 200px);
-  --knob-size: clamp(52px, 8.8dvh, 70px);
+  --bg-deep: #060a12;
+  --bg-card: rgba(15, 23, 42, 0.86);
+  --bg-card-elevated: rgba(22, 33, 58, 0.92);
+  --border-subtle: rgba(148, 163, 184, 0.16);
+  --border-bright: rgba(56, 189, 248, 0.38);
+  --accent-cyan: #00e5ff;
+  --accent-blue: #3b82f6;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-purple: #a855f7;
+  --accent-red: #ef4444;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
 }
 
-@media (min-width: 768px) {
-  :root {
-    --joystick-size: clamp(200px, 43dvh, 275px);
-    --knob-size: clamp(70px, 14.5dvh, 92px);
-  }
-}
-
-@media (orientation: landscape) and (max-height: 540px) {
-  :root {
-    --joystick-size: clamp(120px, 40dvh, 170px);
-    --knob-size: clamp(44px, 14dvh, 60px);
-  }
-}
-
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
 }
 
 html,
-body.app-viewport {
-  height: 100vh;
-  height: 100dvh;
-  max-height: 100dvh;
+body {
   margin: 0;
   padding: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: radial-gradient(circle at 50% 0%, #131c2e 0%, #090d14 75%);
-  color: #f1f5f9;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--bg-deep);
+  background-image:
+    radial-gradient(circle at 14% 12%, rgba(0, 229, 255, 0.12), transparent 36%),
+    radial-gradient(circle at 86% 18%, rgba(59, 130, 246, 0.11), transparent 36%),
+    radial-gradient(circle at 50% 92%, rgba(16, 185, 129, 0.08), transparent 42%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+  color: var(--text-main);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
   user-select: none;
-}
-
-:focus-visible {
-  outline: 2px solid var(--accent-cyan) !important;
-  outline-offset: 2px;
+  -webkit-user-select: none;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ==========================================================================
-   HEADER Y FOOTER
+   CONTENEDOR PRINCIPAL (100dvh CERO SCROLL)
    ========================================================================== */
-
-.app-header {
-  flex: 0 0 auto;
-  background: rgba(11, 15, 25, 0.92);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0.35rem 0.75rem;
+.app-viewport {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1760px;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0 auto;
+  padding: 10px 18px 6px;
+  gap: 10px;
+  overflow: hidden;
 }
 
-.header-inner {
-  max-width: 1180px;
-  margin: 0 auto;
+/* ==========================================================================
+   1. BARRA SUPERIOR
+   ========================================================================== */
+.app-topbar {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.95), rgba(20, 31, 56, 0.9));
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 8px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.header-logo {
-  filter: drop-shadow(0 0 6px rgba(13, 202, 240, 0.5));
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.header-title {
-  font-size: 0.95rem;
+.brand-emblem {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.22), rgba(59, 130, 246, 0.25));
+  border: 1px solid rgba(0, 229, 255, 0.5);
+  color: var(--accent-cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.28);
+}
+
+.brand-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.vehicle-name {
+  font-size: 1.05rem;
   font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  background: linear-gradient(90deg, #ffffff 0%, #7dd3fc 100%);
+  letter-spacing: 0.7px;
+  margin: 0;
+  line-height: 1.15;
+  background: linear-gradient(90deg, #ffffff, #bae6fd);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
+.vehicle-subtitle {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 .btn-reconnect {
-  background: rgba(13, 202, 240, 0.12);
-  border: 1px solid rgba(13, 202, 240, 0.38);
-  color: #7dd3fc;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.22rem 0.65rem;
-  border-radius: 999px;
-  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.14), rgba(59, 130, 246, 0.14));
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  color: #e0f2fe;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
 }
 
-.btn-reconnect:hover,
+.btn-reconnect:hover {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.25), rgba(59, 130, 246, 0.25));
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.28);
+}
+
 .btn-reconnect:active {
-  background: rgba(13, 202, 240, 0.25);
-  color: #ffffff;
-}
-
-.app-footer {
-  flex: 0 0 auto;
-  background: rgba(11, 15, 25, 0.94);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  text-align: center;
-  padding: 0.28rem 0.5rem;
-  font-size: 0.74rem;
-  color: #94a3b8;
+  transform: scale(0.96);
 }
 
 /* ==========================================================================
-   CONTENEDOR PRINCIPAL Y BARRA DE 3 INDICADORES
+   2. FRANJA DE 3 INDICADORES DE CONEXIÓN
    ========================================================================== */
-
-.app-main {
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 0.4rem 0.55rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  overflow: hidden;
-}
-
-@media (min-width: 768px) {
-  .app-main {
-    padding: 0.65rem 1rem;
-    gap: 0.6rem;
-  }
-}
-
-.connectivity-bar {
+.status-strip {
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.35rem;
-}
-
-@media (min-width: 768px) {
-  .connectivity-bar {
-    gap: 0.6rem;
-  }
+  gap: 10px;
 }
 
 .status-pill-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
-  padding: 0.32rem 0.45rem;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 13px;
+  padding: 8px 14px;
+  transition: all 0.22s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+}
+
+.status-pill-card.online {
+  border-color: rgba(16, 185, 129, 0.38);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(6, 78, 59, 0.28));
+}
+
+.status-pill-card.offline {
+  border-color: rgba(239, 68, 68, 0.42);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(127, 29, 29, 0.26));
+}
+
+.status-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-@media (min-width: 576px) {
-  .status-pill-card {
-    flex-direction: row;
-    justify-content: space-between;
-    padding: 0.4rem 0.85rem;
-  }
-}
-
-.status-title {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #e2e8f0;
-  white-space: nowrap;
-}
-
-.status-icon {
-  font-size: 0.82rem;
-}
-
-.status-badge {
-  font-size: 0.65rem;
-  padding: 0.22em 0.6em;
-  font-weight: 700;
-}
-
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  color: #94a3b8;
+  font-size: 1.05rem;
   flex-shrink: 0;
 }
 
-.status-connected {
-  background-color: var(--status-ok);
-  box-shadow: 0 0 8px var(--status-ok);
+.status-pill-card.online .status-icon-wrap {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
 }
 
-.status-connecting {
-  background-color: var(--status-warn);
-  box-shadow: 0 0 8px var(--status-warn);
-  animation: pulse-status 1.2s infinite ease-in-out;
+.status-pill-card.offline .status-icon-wrap {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.35);
 }
 
-.status-disconnected {
-  background-color: var(--status-err);
-  box-shadow: 0 0 8px var(--status-err);
+.status-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  min-width: 0;
 }
 
-@keyframes pulse-status {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.25);
-    opacity: 0.6;
-  }
+.status-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-state-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.online {
+  background-color: var(--accent-emerald);
+  box-shadow: 0 0 10px var(--accent-emerald);
+}
+
+.status-dot.checking {
+  background-color: var(--accent-amber);
+  box-shadow: 0 0 10px var(--accent-amber);
+  animation: pulseDot 1.2s infinite ease-in-out;
+}
+
+.status-dot.offline {
+  background-color: var(--accent-red);
+  box-shadow: 0 0 10px var(--accent-red);
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.45; }
+}
+
+.status-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.25px;
+}
+
+.status-badge.online {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.status-badge.checking {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.status-badge.offline {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
 /* ==========================================================================
-   TARJETAS PRINCIPALES (Sin espacios muertos)
+   AVISO FLOTANTE
    ========================================================================== */
-
-.control-grid {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: minmax(0, 1.18fr) minmax(0, 1fr);
-  gap: 0.4rem;
+.toast-alert {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 290px;
+  max-width: 92vw;
+  background: rgba(127, 29, 29, 0.96);
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  color: #fef2f2;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
 }
 
-.panel-actions-wrapper {
-  min-height: 0;
-  display: grid;
-  grid-template-rows: minmax(0, 1.38fr) minmax(0, 0.82fr);
-  gap: 0.4rem;
+.toast-alert-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-@media (min-width: 768px), (orientation: landscape) and (max-height: 540px) {
-  .control-grid {
-    grid-template-columns: 1.08fr 1fr;
-    grid-template-rows: 1fr;
-    gap: 0.65rem;
-  }
+.btn-toast-close {
+  background: transparent;
+  border: none;
+  color: #fecaca;
+  cursor: pointer;
+  padding: 2px 4px;
+}
 
-  .panel-actions-wrapper {
-    grid-template-rows: 1.45fr 0.85fr;
-    gap: 0.65rem;
-  }
+/* ==========================================================================
+   3. GRID PRINCIPAL DE LA CABINA
+   ========================================================================== */
+.cockpit-grid {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: 12px;
+}
+
+.right-column-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  height: 100%;
 }
 
 .glass-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.card-top-bar {
+.card-header-bar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.38rem 0.75rem;
+  padding: 10px 16px;
   background: rgba(255, 255, 255, 0.025);
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.panel-title {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #f8fafc;
+.card-title-group {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #f1f5f9;
 }
 
-.cmd-badge {
-  font-size: 0.7rem;
-  padding: 0.28em 0.68em;
+.header-icon-chip {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(0, 229, 255, 0.14);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  color: var(--accent-cyan);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.header-icon-chip.chip-emerald {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.command-pill {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+}
+
+.command-pill.neutral {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.command-pill.active {
+  background: rgba(0, 229, 255, 0.18);
+  color: #67e8f9;
+  border: 1px solid rgba(0, 229, 255, 0.45);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.25);
+}
+
+.command-pill.stop {
+  background: rgba(239, 68, 68, 0.22);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+}
+
+.panel-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+.panel-tag.running {
+  background: rgba(0, 229, 255, 0.2);
+  color: #67e8f9;
+  border-color: rgba(0, 229, 255, 0.45);
 }
 
 /* ==========================================================================
-   PANEL DE JOYSTICK Y TELEMETRÍA
+   4. TARJETA IZQUIERDA: JOYSTICK + TELEMETRÍA + DETENER
    ========================================================================== */
+.card-joystick {
+  height: 100%;
+}
 
-.joystick-body {
-  flex: 1 1 auto;
+.joystick-cockpit-body {
+  flex: 1 1 0;
   min-height: 0;
-  padding: 0.4rem 0.65rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: space-between;
-  gap: 0.35rem;
+  padding: 14px 16px;
+  gap: 12px;
 }
 
-@media (min-width: 768px) {
-  .joystick-body {
-    padding: 0.75rem 1rem;
-    gap: 0.55rem;
-  }
-}
-
-.joystick-wrapper {
-  flex: 1 1 auto;
+.joystick-arena {
+  flex: 1 1 0;
+  min-height: 0;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
+  background:
+    radial-gradient(circle at center, rgba(0, 229, 255, 0.09) 0%, rgba(10, 15, 29, 0.7) 70%),
+    linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 24px 24px, 24px 24px;
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 14px;
+  padding: 22px;
 }
+
+.dir-hint {
+  position: absolute;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: rgba(148, 163, 184, 0.6);
+  pointer-events: none;
+}
+
+.dir-up { top: 8px; left: 50%; transform: translateX(-50%); }
+.dir-down { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.dir-left { left: 12px; top: 50%; transform: translateY(-50%); }
+.dir-right { right: 12px; top: 50%; transform: translateY(-50%); }
 
 .joystick-base {
   position: relative;
-  width: var(--joystick-size);
-  height: var(--joystick-size);
-  aspect-ratio: 1 / 1;
+  width: clamp(160px, 23vh, 225px);
+  height: clamp(160px, 23vh, 225px);
   border-radius: 50%;
-  background: radial-gradient(
-    circle at center,
-    #1e293b 0%,
-    #0f172a 65%,
-    #090d16 100%
-  );
-  border: 3px solid rgba(56, 189, 248, 0.28);
+  background: radial-gradient(circle at center, #162238 0%, #090e1a 78%);
+  border: 2px solid rgba(56, 189, 248, 0.35);
   box-shadow:
-    inset 0 6px 20px rgba(0, 0, 0, 0.85),
-    0 0 24px rgba(13, 202, 240, 0.12);
-  touch-action: none;
-  user-select: none;
-  cursor: pointer;
-}
-
-.joystick-base::before {
-  content: "";
-  position: absolute;
-  inset: 21%;
-  border-radius: 50%;
-  border: 1.5px dashed rgba(56, 189, 248, 0.3);
-  pointer-events: none;
-}
-
-.joystick-base::after {
-  content: "";
-  position: absolute;
-  inset: 8%;
-  border-radius: 50%;
-  background:
-    linear-gradient(to right, transparent 49.5%, rgba(56, 189, 248, 0.08) 50%, transparent 50.5%),
-    linear-gradient(to bottom, transparent 49.5%, rgba(56, 189, 248, 0.08) 50%, transparent 50.5%);
-  pointer-events: none;
-}
-
-.joystick-base.is-active {
-  border-color: var(--accent-cyan);
-  box-shadow:
-    inset 0 6px 20px rgba(0, 0, 0, 0.85),
-    0 0 24px var(--accent-cyan-glow);
-}
-
-.joystick-guide {
-  position: absolute;
-  color: rgba(125, 211, 252, 0.45);
-  font-size: 0.9rem;
-  pointer-events: none;
-  line-height: 1;
-}
-
-.guide-up { top: 6px; left: 50%; transform: translateX(-50%); }
-.guide-down { bottom: 6px; left: 50%; transform: translateX(-50%); }
-.guide-left { left: 6px; top: 50%; transform: translateY(-50%); }
-.guide-right { right: 6px; top: 50%; transform: translateY(-50%); }
-
-.joystick-knob {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: var(--knob-size);
-  height: var(--knob-size);
-  aspect-ratio: 1 / 1;
-  border-radius: 50%;
-  transform: translate3d(-50%, -50%, 0);
-  background: radial-gradient(
-    circle at 35% 35%,
-    #67e8f9 0%,
-    #0dcaf0 48%,
-    #0284c7 100%
-  );
-  border: 3px solid rgba(255, 255, 255, 0.8);
-  box-shadow:
-    0 6px 16px rgba(0, 0, 0, 0.7),
-    inset 0 2px 5px rgba(255, 255, 255, 0.6);
+    inset 0 0 28px rgba(0, 0, 0, 0.9),
+    0 0 25px rgba(0, 229, 255, 0.14);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #041e2b;
-  font-size: 1.25rem;
   touch-action: none;
-  user-select: none;
   cursor: grab;
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease;
-  will-change: transform;
-  z-index: 2;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.joystick-knob.is-dragging {
-  cursor: grabbing;
-  transition: box-shadow 0.15s ease;
+.joystick-base.active {
+  border-color: var(--accent-cyan);
   box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.85),
-    0 0 20px var(--accent-cyan-glow),
-    inset 0 2px 6px rgba(255, 255, 255, 0.75);
+    inset 0 0 30px rgba(0, 229, 255, 0.22),
+    0 0 32px rgba(0, 229, 255, 0.32);
 }
 
-/* Píldoras de telemetría (ocupan el ancho del card sin dejar huecos) */
+.joystick-ring-outer {
+  position: absolute;
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  border: 1px dashed rgba(56, 189, 248, 0.28);
+  pointer-events: none;
+}
+
+.joystick-ring-inner {
+  position: absolute;
+  width: 46%;
+  height: 46%;
+  border-radius: 50%;
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  pointer-events: none;
+}
+
+.joystick-crosshair-h {
+  position: absolute;
+  width: 86%;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.12);
+  pointer-events: none;
+}
+
+.joystick-crosshair-v {
+  position: absolute;
+  width: 1px;
+  height: 86%;
+  background: rgba(148, 163, 184, 0.12);
+  pointer-events: none;
+}
+
+.joy-arrow {
+  position: absolute;
+  color: rgba(56, 189, 248, 0.5);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.joy-arrow.up { top: 7px; }
+.joy-arrow.down { bottom: 7px; }
+.joy-arrow.left { left: 7px; }
+.joy-arrow.right { right: 7px; }
+
+.joystick-handle {
+  position: relative;
+  width: 38%;
+  height: 38%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%, #67e8f9, #0284c7 68%, #0369a1 100%);
+  border: 2.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.7),
+    0 0 22px rgba(0, 229, 255, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+
+.joystick-handle.dragging {
+  transition: none;
+  cursor: grabbing;
+}
+
+.joystick-handle-core {
+  color: #082f49;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.joystick-side-controls {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .telemetry-bar {
-  width: 100%;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.35rem;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: 8px;
 }
 
 .telemetry-chip {
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 0.2rem 0.35rem;
+  background: rgba(9, 14, 26, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 11px;
+  padding: 7px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  line-height: 1.15;
+  text-align: center;
 }
 
 .telemetry-label {
-  font-size: 0.63rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #94a3b8;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  color: var(--text-muted);
 }
 
-.telemetry-value {
-  font-size: 0.78rem;
+.telemetry-val {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.88rem;
+  font-weight: 700;
   color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-/* Botón DETENER VEHÍCULO */
+/* BOTÓN DETENER VEHÍCULO */
 .btn-stop-vehicle {
   width: 100%;
-  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
-  border: 1px solid #f87171;
-  border-radius: 10px;
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 0.88rem;
-  letter-spacing: 0.05em;
-  padding: 0.5rem 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
-  transition: transform 0.1s ease, box-shadow 0.2s ease;
+  gap: 12px;
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  border: 1px solid rgba(254, 202, 202, 0.45);
+  color: #ffffff;
+  padding: 11px 16px;
+  border-radius: 13px;
+  cursor: pointer;
+  box-shadow:
+    0 6px 20px rgba(239, 68, 68, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 0.15s ease;
 }
 
-@media (min-width: 768px) {
-  .btn-stop-vehicle {
-    padding: 0.72rem 1rem;
-    font-size: 0.98rem;
-  }
+.btn-stop-vehicle:hover {
+  background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.58);
 }
 
 .btn-stop-vehicle:active {
   transform: scale(0.98);
 }
 
+.stop-icon-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.stop-text-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.stop-main-label {
+  font-size: 0.94rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  line-height: 1.1;
+}
+
+.stop-sub-label {
+  font-size: 0.68rem;
+  color: rgba(254, 226, 226, 0.88);
+  font-weight: 500;
+}
+
 /* ==========================================================================
-   GRILLA DE FUNCIONES DEL VEHÍCULO (7 botones expandidos al 100% del alto)
+   5. COLUMNA DERECHA: FUNCIONES DEL VEHÍCULO (CERO ESPACIOS VACÍOS)
    ========================================================================== */
+.card-actions {
+  flex: 1.65 1 0;
+}
 
 .actions-grid {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
-  padding: 0.45rem;
+  padding: 12px 14px;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(12, 1fr);
   grid-auto-rows: 1fr;
-  gap: 0.4rem;
-}
-
-@media (min-width: 768px) {
-  .actions-grid {
-    padding: 0.65rem;
-    gap: 0.55rem;
-  }
-}
-
-.span-3 {
-  grid-column: span 3;
-}
-
-.span-2 {
-  grid-column: span 2;
+  gap: 10px;
 }
 
 .btn-action-cmd {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
   width: 100%;
   height: 100%;
-  border-radius: 10px;
+  min-height: 0;
+  padding: 10px 14px;
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.92));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #f8fafc;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  text-align: left;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.btn-action-cmd.tile-half {
+  grid-column: span 6;
+}
+
+.btn-action-cmd.tile-third {
+  grid-column: span 4;
+}
+
+.action-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
   display: flex;
-  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  font-size: 0.78rem;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  transition: transform 0.16s ease;
+}
+
+.action-text-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.action-label {
+  font-size: 0.9rem;
   font-weight: 700;
-  padding: 0.25rem 0.4rem;
-  color: #f1f5f9;
-  transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
-@media (min-width: 768px) {
-  .btn-action-cmd {
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.84rem;
-  }
-
-  .btn-action-cmd i {
-    font-size: 1.25rem;
-  }
+.action-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.action-cyan {
-  background: linear-gradient(145deg, rgba(14, 116, 144, 0.28) 0%, rgba(15, 23, 42, 0.85) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.38);
-  color: #bae6fd;
+/* Variantes de color por función */
+.btn-action-cmd.action-cyan {
+  border-color: rgba(0, 229, 255, 0.3);
+  background: linear-gradient(145deg, rgba(8, 47, 73, 0.5), rgba(15, 23, 42, 0.92));
+}
+.btn-action-cmd.action-cyan .action-icon-box {
+  background: rgba(0, 229, 255, 0.16);
+  color: #22d3ee;
+  border: 1px solid rgba(0, 229, 255, 0.38);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.18);
+}
+.btn-action-cmd.action-cyan:hover:not(:disabled) {
+  border-color: var(--accent-cyan);
+  background: linear-gradient(145deg, rgba(8, 47, 73, 0.78), rgba(15, 23, 42, 0.95));
+  box-shadow: 0 6px 20px rgba(0, 229, 255, 0.22);
 }
 
-.action-cyan:hover {
-  background: rgba(14, 116, 144, 0.45);
-  border-color: #38bdf8;
+.btn-action-cmd.action-amber {
+  border-color: rgba(245, 158, 11, 0.32);
+  background: linear-gradient(145deg, rgba(69, 26, 3, 0.45), rgba(15, 23, 42, 0.92));
+}
+.btn-action-cmd.action-amber .action-icon-box {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.18);
+}
+.btn-action-cmd.action-amber:hover:not(:disabled) {
+  border-color: var(--accent-amber);
+  background: linear-gradient(145deg, rgba(69, 26, 3, 0.72), rgba(15, 23, 42, 0.95));
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.22);
 }
 
-.action-amber {
-  background: linear-gradient(145deg, rgba(180, 83, 9, 0.26) 0%, rgba(15, 23, 42, 0.85) 100%);
-  border: 1px solid rgba(251, 191, 36, 0.38);
-  color: #fde68a;
+.btn-action-cmd.action-emerald {
+  border-color: rgba(16, 185, 129, 0.32);
+  background: linear-gradient(145deg, rgba(6, 78, 59, 0.42), rgba(15, 23, 42, 0.92));
+}
+.btn-action-cmd.action-emerald .action-icon-box {
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.38);
+}
+.btn-action-cmd.action-emerald:hover:not(:disabled) {
+  border-color: var(--accent-emerald);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.22);
 }
 
-.action-amber:hover {
-  background: rgba(180, 83, 9, 0.42);
-  border-color: #fbbf24;
+.btn-action-cmd.action-purple {
+  border-color: rgba(168, 85, 247, 0.32);
+  background: linear-gradient(145deg, rgba(59, 7, 100, 0.42), rgba(15, 23, 42, 0.92));
+}
+.btn-action-cmd.action-purple .action-icon-box {
+  background: rgba(168, 85, 247, 0.16);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.38);
+}
+.btn-action-cmd.action-purple:hover:not(:disabled) {
+  border-color: var(--accent-purple);
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.22);
 }
 
-.action-neutral {
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.9) 100%);
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  color: #e2e8f0;
+.btn-action-cmd.action-blue {
+  border-color: rgba(59, 130, 246, 0.32);
+  background: linear-gradient(145deg, rgba(30, 58, 138, 0.45), rgba(15, 23, 42, 0.92));
+}
+.btn-action-cmd.action-blue .action-icon-box {
+  background: rgba(59, 130, 246, 0.16);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.38);
+}
+.btn-action-cmd.action-blue:hover:not(:disabled) {
+  border-color: var(--accent-blue);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.22);
 }
 
-.action-neutral:hover {
-  background: rgba(51, 65, 85, 0.75);
-  border-color: #94a3b8;
-}
-
-/* Estados visuales de los botones */
-.btn-action-cmd:active,
-.btn-action-cmd.btn-state-pressed {
-  transform: scale(0.96);
-}
-
-.btn-action-cmd.btn-state-sending {
-  border-color: var(--status-warn) !important;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
-}
-
-.btn-action-cmd.btn-state-accepted {
-  border-color: var(--status-ok) !important;
-  box-shadow: 0 0 14px rgba(16, 185, 129, 0.65);
-}
-
-.btn-action-cmd.btn-state-error {
-  border-color: var(--status-err) !important;
-  box-shadow: 0 0 14px rgba(239, 68, 68, 0.65);
+.btn-action-cmd:active:not(:disabled),
+.btn-action-cmd.active-pulse {
+  transform: scale(0.97);
+  border-color: #ffffff !important;
+  box-shadow: 0 0 22px rgba(0, 229, 255, 0.45) !important;
 }
 
 .btn-action-cmd:disabled {
@@ -604,94 +857,666 @@ body.app-viewport {
 }
 
 /* ==========================================================================
-   PANEL DE SECUENCIA DEMO (Ocupa el 100% de su tarjeta sin espacio vacío)
+   6. TARJETA MODO DEMO
    ========================================================================== */
-
-.demo-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  padding: 0.45rem 0.6rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  gap: 0.4rem;
+.card-demo {
+  flex: 1 1 0;
 }
 
-@media (min-width: 768px) {
-  .demo-body {
-    padding: 0.65rem 0.8rem;
-    gap: 0.55rem;
-  }
+.demo-body {
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.demo-controls-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  justify-content: center;
+}
+
+.demo-select-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.demo-select-icon {
+  position: absolute;
+  left: 13px;
+  color: var(--accent-cyan);
+  font-size: 0.95rem;
+  pointer-events: none;
 }
 
 .demo-select {
-  background-color: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.32);
+  background-color: rgba(9, 14, 26, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.26);
   color: #f8fafc;
-  font-size: 0.8rem;
+  font-size: 0.86rem;
   font-weight: 600;
-  border-radius: 9px;
-  padding: 0.35rem 2rem 0.35rem 0.65rem;
+  border-radius: 11px;
+  padding: 9px 12px 9px 36px;
 }
 
-.demo-actions {
-  flex: 1 1 auto;
+.demo-select:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.16);
+}
+
+.demo-buttons-row {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 0.45rem;
-  max-height: 48px;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+  flex: 1 1 0;
+  max-height: 54px;
 }
 
 .btn-demo-start {
-  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
-  border: 1px solid #34d399;
-  border-radius: 9px;
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 0.82rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-  transition: transform 0.1s ease, opacity 0.2s ease;
+  gap: 8px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 1px solid rgba(167, 243, 208, 0.4);
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 800;
+  border-radius: 11px;
+  padding: 8px 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.32);
+  transition: all 0.15s ease;
+}
+
+.btn-demo-start:hover:not(:disabled) {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
 }
 
 .btn-demo-start:disabled {
   opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .btn-demo-cancel {
-  background: rgba(245, 158, 11, 0.14);
-  border: 1px solid rgba(245, 158, 11, 0.55);
-  border-radius: 9px;
-  color: #fcd34d;
-  font-weight: 700;
-  font-size: 0.82rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
-  transition: transform 0.1s ease, background 0.2s ease;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fcd34d;
+  font-size: 0.84rem;
+  font-weight: 700;
+  border-radius: 11px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.btn-demo-cancel:hover,
-.btn-demo-cancel:active {
-  background: rgba(245, 158, 11, 0.28);
-  color: #ffffff;
+.btn-demo-cancel:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.25);
 }
 
-/* Alertas flotantes */
-.floating-alerts {
-  position: fixed;
-  top: 46px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(92vw, 440px);
-  z-index: 1050;
-  pointer-events: none;
+.btn-demo-cancel:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
-.floating-alerts .alert {
-  pointer-events: auto;
+.demo-progress-box {
+  background: rgba(9, 14, 26, 0.85);
+  border: 1px solid rgba(0, 229, 255, 0.28);
+  border-radius: 9px;
+  padding: 6px 10px;
+}
+
+.demo-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #bae6fd;
+  margin-bottom: 4px;
+}
+
+.demo-progress-track {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+/* ==========================================================================
+   7. PIE DE PÁGINA OBLIGATORIO
+   ========================================================================== */
+.app-footer {
+  flex: 0 0 auto;
+  text-align: center;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+/* ==========================================================================
+   FORMATO 1 DE CELULAR: VERTICAL / PORTRAIT (max-width: 767.98px)
+   Garantiza que NADA se corte abajo poniendo el Joystick a la izquierda y
+   Telemetría + Botón DETENER a la derecha dentro de la tarjeta superior.
+   ========================================================================== */
+@media (max-width: 767.98px) and (orientation: portrait) {
+  .app-viewport {
+    padding: 6px 8px 4px;
+    gap: 6px;
+  }
+
+  .app-topbar {
+    padding: 6px 10px;
+    border-radius: 11px;
+  }
+
+  .brand-emblem {
+    width: 30px;
+    height: 30px;
+    font-size: 0.95rem;
+    border-radius: 8px;
+  }
+
+  .vehicle-name {
+    font-size: 0.88rem;
+  }
+
+  .vehicle-subtitle {
+    display: none;
+  }
+
+  .btn-reconnect {
+    padding: 4px 10px;
+    font-size: 0.72rem;
+  }
+
+  /* 3 indicadores compactos */
+  .status-strip {
+    gap: 5px;
+  }
+
+  .status-pill-card {
+    padding: 5px 6px;
+    border-radius: 10px;
+    gap: 6px;
+  }
+
+  .status-icon-wrap {
+    display: none;
+  }
+
+  .status-info {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 2px;
+  }
+
+  .status-title {
+    font-size: 0.63rem;
+  }
+
+  .status-badge {
+    font-size: 0.6rem;
+    padding: 1px 6px;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  /* Layout vertical sin recortes */
+  .cockpit-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .card-header-bar {
+    padding: 5px 10px;
+  }
+
+  .card-title-group {
+    font-size: 0.76rem;
+    gap: 6px;
+  }
+
+  .header-icon-chip {
+    width: 22px;
+    height: 22px;
+    font-size: 0.72rem;
+    border-radius: 6px;
+  }
+
+  .command-pill,
+  .panel-tag {
+    font-size: 0.64rem;
+    padding: 2px 8px;
+  }
+
+  /* En celular vertical: Joystick a la izquierda y Telemetría + DETENER a la derecha */
+  .card-joystick {
+    flex: 0 0 auto;
+    height: auto;
+  }
+
+  .joystick-cockpit-body {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    padding: 8px 10px;
+    gap: 10px;
+  }
+
+  .joystick-arena {
+    padding: 6px;
+    border-radius: 12px;
+  }
+
+  .dir-hint {
+    display: none;
+  }
+
+  .joystick-base {
+    width: 114px;
+    height: 114px;
+  }
+
+  .joystick-handle-core {
+    font-size: 0.95rem;
+  }
+
+  .joystick-side-controls {
+    gap: 7px;
+    justify-content: center;
+  }
+
+  .telemetry-bar {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
+  }
+
+  .telemetry-chip {
+    padding: 4px 6px;
+    border-radius: 8px;
+  }
+
+  .telemetry-chip-dir {
+    grid-column: span 2;
+  }
+
+  .telemetry-label {
+    font-size: 0.55rem;
+  }
+
+  .telemetry-val {
+    font-size: 0.74rem;
+  }
+
+  .btn-stop-vehicle {
+    padding: 7px 10px;
+    border-radius: 10px;
+    gap: 8px;
+  }
+
+  .stop-icon-circle {
+    width: 26px;
+    height: 26px;
+    font-size: 0.95rem;
+  }
+
+  .stop-main-label {
+    font-size: 0.76rem;
+  }
+
+  .stop-sub-label {
+    display: none;
+  }
+
+  /* Funciones + DEMO ocupan el resto de la pantalla sin recortarse jamás */
+  .right-column-stack {
+    flex: 1 1 0;
+    gap: 6px;
+    min-height: 0;
+  }
+
+  .card-actions {
+    flex: 1.55 1 0;
+  }
+
+  .actions-grid {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .btn-action-cmd {
+    padding: 5px 8px;
+    gap: 8px;
+    border-radius: 10px;
+  }
+
+  .action-icon-box {
+    width: 28px;
+    height: 28px;
+    font-size: 0.9rem;
+    border-radius: 8px;
+  }
+
+  .action-label {
+    font-size: 0.75rem;
+  }
+
+  .action-sub {
+    font-size: 0.58rem;
+  }
+
+  /* Modo DEMO compacto en una sola fila o dos muy compactas */
+  .card-demo {
+    flex: 0 0 auto;
+  }
+
+  .demo-body {
+    padding: 6px 8px;
+    gap: 5px;
+  }
+
+  .demo-controls-row {
+    gap: 6px;
+  }
+
+  .demo-select {
+    font-size: 0.76rem;
+    padding: 5px 8px 5px 30px;
+    border-radius: 8px;
+  }
+
+  .demo-select-icon {
+    left: 10px;
+    font-size: 0.8rem;
+  }
+
+  .demo-buttons-row {
+    gap: 6px;
+    max-height: 34px;
+  }
+
+  .btn-demo-start,
+  .btn-demo-cancel {
+    font-size: 0.75rem;
+    padding: 5px 10px;
+    border-radius: 8px;
+  }
+
+  .app-footer {
+    font-size: 0.64rem;
+    padding: 0;
+  }
+}
+
+/* ==========================================================================
+   FORMATO 2 DE CELULAR: HORIZONTAL / LANDSCAPE (max-height: 540px)
+   Garantiza visibilidad 100% en modo horizontal sin que se corte el botón
+   DETENER ni las funciones ni el Modo DEMO.
+   ========================================================================== */
+@media (max-height: 540px) and (orientation: landscape) {
+  .app-viewport {
+    padding: 4px 10px 2px;
+    gap: 4px;
+  }
+
+  .app-topbar {
+    padding: 3px 10px;
+    border-radius: 9px;
+  }
+
+  .brand-emblem {
+    width: 24px;
+    height: 24px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+  }
+
+  .vehicle-name {
+    font-size: 0.8rem;
+  }
+
+  .vehicle-subtitle {
+    display: none;
+  }
+
+  .btn-reconnect {
+    padding: 2px 8px;
+    font-size: 0.68rem;
+    border-radius: 7px;
+  }
+
+  /* Franja de estado ultra compacta */
+  .status-strip {
+    gap: 6px;
+  }
+
+  .status-pill-card {
+    padding: 3px 8px;
+    border-radius: 8px;
+    gap: 6px;
+  }
+
+  .status-icon-wrap {
+    width: 22px;
+    height: 22px;
+    font-size: 0.72rem;
+    border-radius: 6px;
+  }
+
+  .status-title {
+    font-size: 0.66rem;
+  }
+
+  .status-badge {
+    font-size: 0.6rem;
+    padding: 1px 6px;
+  }
+
+  /* 2 columnas en horizontal */
+  .cockpit-grid {
+    grid-template-columns: 44% 56%;
+    gap: 6px;
+  }
+
+  .right-column-stack {
+    gap: 6px;
+  }
+
+  .card-header-bar {
+    padding: 3px 10px;
+  }
+
+  .card-title-group {
+    font-size: 0.72rem;
+    gap: 6px;
+  }
+
+  .header-icon-chip {
+    width: 20px;
+    height: 20px;
+    font-size: 0.68rem;
+    border-radius: 5px;
+  }
+
+  .command-pill,
+  .panel-tag {
+    font-size: 0.6rem;
+    padding: 1px 7px;
+  }
+
+  /* Izquierda: Joystick a la izquierda + Telemetría y DETENER a la derecha */
+  .joystick-cockpit-body {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    padding: 6px 8px;
+    gap: 8px;
+  }
+
+  .joystick-arena {
+    padding: 4px;
+    border-radius: 10px;
+    height: 100%;
+  }
+
+  .dir-hint {
+    display: none;
+  }
+
+  .joystick-base {
+    width: clamp(86px, 34vh, 112px);
+    height: clamp(86px, 34vh, 112px);
+  }
+
+  .joystick-handle-core {
+    font-size: 0.85rem;
+  }
+
+  .joystick-side-controls {
+    gap: 5px;
+  }
+
+  .telemetry-bar {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+  }
+
+  .telemetry-chip {
+    padding: 2px 5px;
+    border-radius: 6px;
+  }
+
+  .telemetry-chip-dir {
+    grid-column: span 2;
+  }
+
+  .telemetry-label {
+    font-size: 0.5rem;
+  }
+
+  .telemetry-val {
+    font-size: 0.68rem;
+  }
+
+  .btn-stop-vehicle {
+    padding: 5px 8px;
+    border-radius: 8px;
+    gap: 6px;
+  }
+
+  .stop-icon-circle {
+    width: 22px;
+    height: 22px;
+    font-size: 0.82rem;
+  }
+
+  .stop-main-label {
+    font-size: 0.7rem;
+  }
+
+  .stop-sub-label {
+    display: none;
+  }
+
+  /* Derecha Arriba: Los 7 botones en solo 2 filas (4 arriba + 3 abajo) */
+  .card-actions {
+    flex: 1.5 1 0;
+  }
+
+  .actions-grid {
+    padding: 5px 6px;
+    gap: 5px;
+  }
+
+  .btn-action-cmd.tile-half {
+    grid-column: span 3;
+  }
+
+  .btn-action-cmd.tile-third {
+    grid-column: span 4;
+  }
+
+  .btn-action-cmd {
+    padding: 3px 6px;
+    gap: 5px;
+    border-radius: 8px;
+  }
+
+  .action-icon-box {
+    width: 22px;
+    height: 22px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+  }
+
+  .action-label {
+    font-size: 0.66rem;
+  }
+
+  .action-sub {
+    display: none;
+  }
+
+  /* Derecha Abajo: Selector DEMO + Iniciar + Cancelar en 1 sola fila horizontal */
+  .card-demo {
+    flex: 0 0 auto;
+  }
+
+  .demo-body {
+    padding: 5px 8px;
+  }
+
+  .demo-controls-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .demo-select-group {
+    flex: 1.2 1 0;
+  }
+
+  .demo-select {
+    font-size: 0.7rem;
+    padding: 4px 8px 4px 26px;
+    border-radius: 7px;
+  }
+
+  .demo-select-icon {
+    left: 8px;
+    font-size: 0.75rem;
+  }
+
+  .demo-buttons-row {
+    flex: 1.3 1 0;
+    gap: 5px;
+  }
+
+  .btn-demo-start,
+  .btn-demo-cancel {
+    font-size: 0.68rem;
+    padding: 4px 8px;
+    border-radius: 7px;
+  }
+
+  .app-footer {
+    font-size: 0.6rem;
+    padding: 0;
+  }
 }

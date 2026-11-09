@@ -1,300 +1,245 @@
 /**
- * MÓDULO DE INTERFAZ DE USUARIO (assets/js/ui.js)
- * Funciones puras y actualizadores seguros del DOM para los 3 indicadores
- * de conectividad, estados visuales de botones, joystick y DEMO.
+ * @file ui.js
+ * @description Gestión visual de indicadores, controles táctiles y estado de la interfaz
  */
 
-const STATUS_CLASSES = ["status-connected", "status-connecting", "status-disconnected"];
-
-const DEFAULT_SERVICE_LABELS = {
-  ws: {
-    connected: "En línea",
-    connecting: "Conectando",
-    disconnected: "Desconectado",
-  },
-  api: {
-    connected: "Disponible",
-    connecting: "Comprobando",
-    disconnected: "No disponible",
-  },
-  rds: {
-    connected: "Disponible",
-    connecting: "Sin verificar",
-    disconnected: "No disponible",
-  },
+const ICON_MAP = {
+  CABINA_IZQ: { icon: "bi-arrow-counterclockwise", variant: "action-cyan", category: "Giro de torreta" },
+  CABINA_DER: { icon: "bi-arrow-clockwise", variant: "action-cyan", category: "Giro de torreta" },
+  BAJAR_GARRA: { icon: "bi-box-arrow-in-down", variant: "action-amber", category: "Brazo hidráulico" },
+  SUBIR_GARRA: { icon: "bi-box-arrow-up", variant: "action-amber", category: "Brazo hidráulico" },
+  LUZ: { icon: "bi-lightbulb-fill", variant: "action-emerald", category: "Sistema óptico" },
+  SONIDO: { icon: "bi-volume-up-fill", variant: "action-purple", category: "Alerta acústica" },
+  VELOCIDAD: { icon: "bi-speedometer2", variant: "action-blue", category: "Potencia motor" },
 };
 
-export function updateServiceStatus(service, state, customLabel) {
-  const dotEl = document.getElementById(`status-dot-${service}`);
-  const textEl = document.getElementById(`status-text-${service}`);
-  const iconEl = document.getElementById(`status-icon-${service}`);
+/**
+ * Actualiza uno de los 3 indicadores superiores:
+ * @param {'ws'|'api'|'rds'} target
+ * @param {'online'|'checking'|'offline'} status
+ * @param {string} labelText
+ */
+export function setIndicatorState(target, status, labelText) {
+  const dot = document.getElementById(`status-${target}-dot`);
+  const badge = document.getElementById(`status-${target}-text`);
+  const pillCard = document.getElementById(`pill-${target}`);
 
-  if (dotEl) {
-    dotEl.classList.remove(...STATUS_CLASSES);
-    const targetClass =
-      state === "connected"
-        ? "status-connected"
-        : state === "connecting"
-        ? "status-connecting"
-        : "status-disconnected";
-    dotEl.classList.add(targetClass);
+  if (dot) {
+    dot.className = `status-dot ${status}`;
   }
-
-  if (iconEl) {
-    iconEl.classList.remove("text-success", "text-warning", "text-danger");
-    iconEl.classList.add(
-      state === "connected"
-        ? "text-success"
-        : state === "connecting"
-        ? "text-warning"
-        : "text-danger"
-    );
+  if (badge) {
+    badge.className = `status-badge ${status}`;
+    badge.textContent = labelText;
   }
-
-  if (textEl) {
-    const label =
-      customLabel ||
-      (DEFAULT_SERVICE_LABELS[service] && DEFAULT_SERVICE_LABELS[service][state]) ||
-      state;
-    textEl.textContent = label;
-    textEl.className =
-      state === "connected"
-        ? "badge rounded-pill text-bg-success status-badge"
-        : state === "connecting"
-        ? "badge rounded-pill text-bg-warning status-badge"
-        : "badge rounded-pill text-bg-danger status-badge";
+  if (pillCard) {
+    pillCard.classList.remove("online", "checking", "offline");
+    pillCard.classList.add(status);
   }
 }
 
-export function setDispatchStateBadge(state, label) {
-  const badge = document.getElementById("dispatch-state-badge");
+/**
+ * Muestra un aviso claro al usuario
+ */
+export function showErrorBanner(message) {
+  const banner = document.getElementById("error-banner");
+  const msgSpan = document.getElementById("error-banner-msg");
+  if (!banner || !msgSpan) return;
+
+  msgSpan.textContent = message;
+  banner.classList.remove("d-none");
+}
+
+/**
+ * Oculta el banner de aviso
+ */
+export function hideErrorBanner() {
+  const banner = document.getElementById("error-banner");
+  if (banner) {
+    banner.classList.add("d-none");
+  }
+}
+
+/**
+ * Actualiza el indicador del comando actual sin mostrar IDs internos
+ */
+export function updateActiveCommandBadge(commandName, isStop = false) {
+  const badge = document.getElementById("active-command-badge");
   if (!badge) return;
 
-  const map = {
-    normal: { cls: "badge rounded-pill text-bg-secondary cmd-badge", text: label || "Listo" },
-    sending: { cls: "badge rounded-pill text-bg-warning cmd-badge", text: label || "Enviando..." },
-    accepted: { cls: "badge rounded-pill text-bg-success cmd-badge", text: label || "Aceptado" },
-    error: { cls: "badge rounded-pill text-bg-danger cmd-badge", text: label || "Error" },
-  };
-
-  const cfg = map[state] || map.normal;
-  badge.className = cfg.cls;
-  badge.textContent = cfg.text;
-}
-
-export function setActionButtonState(cmdId, state) {
-  const buttons = document.querySelectorAll(`.btn-action-cmd[data-cmd-id="${cmdId}"]`);
-  buttons.forEach((btn) => {
-    btn.classList.remove(
-      "btn-state-pressed",
-      "btn-state-sending",
-      "btn-state-accepted",
-      "btn-state-error"
-    );
-
-    if (state === "disabled") {
-      btn.disabled = true;
-      return;
-    }
-
-    btn.disabled = false;
-    if (state === "pressed") btn.classList.add("btn-state-pressed");
-    if (state === "sending") btn.classList.add("btn-state-sending");
-    if (state === "accepted") btn.classList.add("btn-state-accepted");
-    if (state === "error") btn.classList.add("btn-state-error");
-  });
-}
-
-export function setAllActionButtonsDisabled(disabled) {
-  const buttons = document.querySelectorAll(".btn-action-cmd");
-  buttons.forEach((btn) => {
-    btn.disabled = Boolean(disabled);
-  });
-}
-
-export function showAlert(message, type = "info", timeoutMs = 2400) {
-  const container = document.getElementById("alert-container");
-  if (!container) return;
-
-  const iconMap = {
-    success: "bi-check-circle-fill",
-    danger: "bi-exclamation-triangle-fill",
-    warning: "bi-exclamation-circle-fill",
-    info: "bi-info-circle-fill",
-  };
-
-  const wrapper = document.createElement("div");
-  wrapper.className = `alert alert-${type} alert-dismissible fade show py-1 px-3 small shadow mb-1 d-flex align-items-center justify-content-between`;
-  wrapper.setAttribute("role", "alert");
-
-  const contentDiv = document.createElement("div");
-  contentDiv.className = "d-flex align-items-center gap-2";
-
-  const icon = document.createElement("i");
-  icon.className = `bi ${iconMap[type] || iconMap.info}`;
-  icon.setAttribute("aria-hidden", "true");
-
-  const textSpan = document.createElement("span");
-  textSpan.textContent = String(message);
-
-  contentDiv.appendChild(icon);
-  contentDiv.appendChild(textSpan);
-
-  const closeBtn = document.createElement("button");
-  closeBtn.type = "button";
-  closeBtn.className = "btn-close btn-close-white p-2";
-  closeBtn.setAttribute("data-bs-dismiss", "alert");
-  closeBtn.setAttribute("aria-label", "Cerrar");
-
-  wrapper.appendChild(contentDiv);
-  wrapper.appendChild(closeBtn);
-
-  while (container.children.length >= 1) {
-    container.removeChild(container.firstChild);
-  }
-
-  container.appendChild(wrapper);
-
-  if (timeoutMs > 0) {
-    setTimeout(() => {
-      if (wrapper.parentNode) {
-        wrapper.classList.remove("show");
-        setTimeout(() => wrapper.remove(), 180);
-      }
-    }, timeoutMs);
-  }
-}
-
-export function appendEventLog() {}
-export function clearEventLog() {}
-
-export function updateJoystickTelemetry({ angle, force, direction, commandLabel }) {
-  const angleEl = document.getElementById("joystick-angle");
-  const forceEl = document.getElementById("joystick-force");
-  const dirEl = document.getElementById("joystick-direction");
-  const badgeEl = document.getElementById("active-command-badge");
-
-  if (angleEl) angleEl.textContent = `${Math.round(angle)}°`;
-  if (forceEl) forceEl.textContent = `${Math.round(force)}%`;
-  if (dirEl) dirEl.textContent = String(direction);
-
-  if (badgeEl && commandLabel) {
-    badgeEl.textContent = String(commandLabel);
-    const isStopped = String(commandLabel).toUpperCase().includes("DETENER");
-    badgeEl.className = isStopped
-      ? "badge rounded-pill text-bg-secondary cmd-badge"
-      : "badge rounded-pill text-bg-info cmd-badge";
-  }
-}
-
-export function updateDemoStatusBadge(state, text) {
-  const badge = document.getElementById("demo-status-badge");
-  if (!badge) return;
-
-  if (state === "running") {
-    badge.className = "badge rounded-pill text-bg-success cmd-badge";
-    badge.textContent = text || "En ejecución";
-  } else if (state === "cancelled") {
-    badge.className = "badge rounded-pill text-bg-warning cmd-badge";
-    badge.textContent = text || "Cancelada";
+  badge.textContent = commandName;
+  if (isStop) {
+    badge.className = "command-pill stop";
   } else {
-    badge.className = "badge rounded-pill text-bg-secondary cmd-badge";
-    badge.textContent = text || "Inactivo";
+    badge.className = "command-pill active";
   }
 }
 
-export function renderDemoOptions(demos = []) {
-  const selectEl = document.getElementById("select-demo");
-  if (!selectEl || !Array.isArray(demos) || demos.length === 0) return;
+/**
+ * Actualiza los valores del joystick en pantalla
+ */
+export function updateJoystickTelemetry({ angle, distancePercent, directionLabel }) {
+  const angleEl = document.getElementById("joy-angle");
+  const distEl = document.getElementById("joy-distance");
+  const dirEl = document.getElementById("joy-direction");
 
-  selectEl.innerHTML = "";
+  if (angleEl) angleEl.textContent = `${angle}°`;
+  if (distEl) distEl.textContent = `${distancePercent}%`;
+  if (dirEl) dirEl.textContent = directionLabel;
+}
 
-  demos.forEach((demo, index) => {
-    const id = Number(demo.id_demo ?? demo.id);
-    if (!Number.isInteger(id) || id <= 0) return;
+/**
+ * Renderiza los botones de funciones del vehículo ocupando todo el espacio de su tarjeta
+ */
+export function renderActionButtons(commands, onCommandClick) {
+  const grid = document.getElementById("secondary-controls-grid");
+  const badge = document.getElementById("catalog-status-badge");
+  if (!grid) return;
 
-    const nombre = String(demo.nombre ?? `Demo ${id}`);
-    const option = document.createElement("option");
-    option.value = String(id);
-    option.textContent = nombre;
-    if (index === 0) option.selected = true;
-    selectEl.appendChild(option);
+  grid.innerHTML = "";
+
+  if (!commands || commands.length === 0) {
+    grid.innerHTML = `<div class="text-secondary small text-center py-2" style="grid-column: span 12;">Sin funciones adicionales</div>`;
+    return;
+  }
+
+  if (badge) {
+    badge.textContent = `${commands.length} Funciones`;
+  }
+
+  commands.forEach((cmd, idx) => {
+    const meta = resolveCommandMeta(cmd);
+    // Primeros 4 botones (Cabina y Garra) ocupan mitad en vertical/PC y cuarto en landscape; los últimos 3 (Luz, Sonido, Velocidad) ocupan un tercio
+    const spanClass = idx < 4 ? "tile-half" : "tile-third";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `btn-action-cmd ${meta.variant} ${spanClass}`;
+    btn.dataset.comandoId = cmd.id;
+    btn.dataset.comandoNombre = cmd.nombre;
+    btn.innerHTML = `
+      <span class="action-icon-box"><i class="bi ${meta.icon}"></i></span>
+      <span class="action-text-wrap">
+        <span class="action-label">${escapeHtml(cmd.nombre)}</span>
+        <span class="action-sub">${escapeHtml(meta.category)}</span>
+      </span>
+    `;
+
+    btn.addEventListener("click", () => onCommandClick(cmd, btn));
+    grid.appendChild(btn);
   });
 }
 
 /**
- * Renderiza dinámicamente los botones dentro de `.actions-grid` ocupando el 100% del espacio.
- * @param {Array<object>} commands
- * @param {function(number, string): void} onCommandClick
+ * Resalta brevemente el botón presionado o confirmado
  */
-export function renderActionButtons(commands = [], onCommandClick) {
-  const container = document.getElementById("commands-container");
-  if (!container || !Array.isArray(commands) || commands.length === 0) return;
-
-  const excludedIds = new Set([1, 2, 5, 6, 12, 13]);
-  const extraCommands = commands.filter(
-    (c) => Number(c.activo ?? 1) === 1 && !excludedIds.has(Number(c.id_comando))
-  );
-
-  if (extraCommands.length === 0) return;
-
-  container.innerHTML = "";
-
-  const getButtonStyleAndIcon = (name) => {
-    const upper = name.toUpperCase();
-    if (upper.includes("CABINA IZQUIERDA")) {
-      return { styleClass: "action-cyan span-3", icon: "bi-arrow-counterclockwise", shortLabel: "Cabina Izq." };
+export function highlightActiveButton(comandoId) {
+  const buttons = document.querySelectorAll(".btn-action-cmd");
+  buttons.forEach((btn) => {
+    if (Number(btn.dataset.comandoId) === Number(comandoId)) {
+      btn.classList.add("active-pulse");
+      setTimeout(() => btn.classList.remove("active-pulse"), 550);
+    } else {
+      btn.classList.remove("active-pulse");
     }
-    if (upper.includes("CABINA DERECHA")) {
-      return { styleClass: "action-cyan span-3", icon: "bi-arrow-clockwise", shortLabel: "Cabina Der." };
-    }
-    if (upper.includes("BAJAR GARRA")) {
-      return { styleClass: "action-amber span-3", icon: "bi-arrow-down-circle-fill", shortLabel: "Bajar Garra" };
-    }
-    if (upper.includes("SUBIR GARRA")) {
-      return { styleClass: "action-amber span-3", icon: "bi-arrow-up-circle-fill", shortLabel: "Subir Garra" };
-    }
-    if (upper.includes("LUZ")) {
-      return { styleClass: "action-neutral span-2", icon: "bi-lightbulb-fill text-warning", shortLabel: "Luz" };
-    }
-    if (upper.includes("SONIDO")) {
-      return { styleClass: "action-neutral span-2", icon: "bi-volume-up-fill text-info", shortLabel: "Sonido" };
-    }
-    if (upper.includes("VELOCIDAD")) {
-      return { styleClass: "action-neutral span-2", icon: "bi-speedometer2 text-success", shortLabel: "Velocidad" };
-    }
-    return { styleClass: "action-cyan span-3", icon: "bi-lightning-charge-fill", shortLabel: name };
-  };
-
-  extraCommands.forEach((cmd) => {
-    const cmdId = Number(cmd.id_comando);
-    if (!Number.isInteger(cmdId) || cmdId <= 0) return;
-
-    const cmdName = String(cmd.nombre || "Acción");
-    const { styleClass, icon, shortLabel } = getButtonStyleAndIcon(cmdName);
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `btn-action-cmd ${styleClass}`;
-    btn.dataset.cmdId = String(cmdId);
-    btn.dataset.cmdName = cmdName;
-
-    const iconEl = document.createElement("i");
-    iconEl.className = `bi ${icon}`;
-    iconEl.setAttribute("aria-hidden", "true");
-
-    const spanEl = document.createElement("span");
-    spanEl.textContent = shortLabel;
-
-    btn.appendChild(iconEl);
-    btn.appendChild(spanEl);
-
-    btn.addEventListener("click", () => {
-      if (typeof onCommandClick === "function") {
-        onCommandClick(cmdId, cmdName);
-      }
-    });
-
-    container.appendChild(btn);
   });
+}
+
+/**
+ * Llena el selector de secuencias DEMO con nombres limpios
+ */
+export function populateDemoSelect(demos) {
+  const select = document.getElementById("select-demo");
+  if (!select) return;
+
+  select.innerHTML = "";
+
+  if (!demos || demos.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "Sin secuencias disponibles";
+    select.appendChild(opt);
+    return;
+  }
+
+  demos.forEach((demo) => {
+    const opt = document.createElement("option");
+    opt.value = demo.id;
+    opt.textContent = demo.descripcion
+      ? `${demo.nombre} · ${demo.descripcion}`
+      : demo.nombre;
+    select.appendChild(opt);
+  });
+}
+
+/**
+ * Actualiza el estado visual de la ejecución DEMO
+ */
+export function setDemoProgressUI({ active, stepText = "", percent = 0 }) {
+  const container = document.getElementById("demo-progress-container");
+  const stepTextEl = document.getElementById("demo-step-text");
+  const counterEl = document.getElementById("demo-step-counter");
+  const barEl = document.getElementById("demo-progress-bar");
+  const statusBadge = document.getElementById("demo-status-badge");
+  const btnStart = document.getElementById("btn-start-demo");
+  const btnCancel = document.getElementById("btn-cancel-demo");
+  const selectDemo = document.getElementById("select-demo");
+
+  if (!container) return;
+
+  if (active) {
+    container.classList.remove("d-none");
+    if (stepTextEl) stepTextEl.textContent = stepText;
+    if (counterEl) counterEl.textContent = `${percent}%`;
+    if (barEl) barEl.style.width = `${percent}%`;
+    if (statusBadge) {
+      statusBadge.className = "panel-tag running";
+      statusBadge.textContent = "En curso";
+    }
+    if (btnStart) btnStart.disabled = true;
+    if (btnCancel) btnCancel.disabled = false;
+    if (selectDemo) selectDemo.disabled = true;
+  } else {
+    container.classList.add("d-none");
+    if (barEl) barEl.style.width = "0%";
+    if (statusBadge) {
+      statusBadge.className = "panel-tag";
+      statusBadge.textContent = "Inactivo";
+    }
+    if (btnStart) btnStart.disabled = false;
+    if (btnCancel) btnCancel.disabled = true;
+    if (selectDemo) selectDemo.disabled = false;
+  }
+}
+
+/**
+ * Habilita o deshabilita los botones de funciones durante una DEMO
+ */
+export function setControlsDisabled(disabled) {
+  document.querySelectorAll(".btn-action-cmd").forEach((btn) => {
+    btn.disabled = disabled;
+  });
+}
+
+function resolveCommandMeta(cmd) {
+  const code = (cmd.codigo || "").toUpperCase();
+  if (ICON_MAP[code]) return ICON_MAP[code];
+
+  const name = (cmd.nombre || "").toLowerCase();
+  if (name.includes("cabina") && name.includes("izq")) return ICON_MAP.CABINA_IZQ;
+  if (name.includes("cabina") && name.includes("der")) return ICON_MAP.CABINA_DER;
+  if (name.includes("bajar")) return ICON_MAP.BAJAR_GARRA;
+  if (name.includes("subir")) return ICON_MAP.SUBIR_GARRA;
+  if (name.includes("luz")) return ICON_MAP.LUZ;
+  if (name.includes("sonido") || name.includes("claxon")) return ICON_MAP.SONIDO;
+  if (name.includes("velocidad")) return ICON_MAP.VELOCIDAD;
+
+  return { icon: "bi-Sliders", variant: "action-cyan", category: "Operación" };
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

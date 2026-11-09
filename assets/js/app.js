@@ -12,7 +12,7 @@ import {
   fetchDemoMovements,
   sendMovement,
   registerDemoExecution,
-} from "./api.js?v=5";
+} from "./api.js?v=6";
 
 import {
   setIndicatorState,
@@ -24,10 +24,10 @@ import {
   setDemoProgressUI,
   setControlsDisabled,
   highlightActiveButton,
-} from "./ui.js?v=5";
+} from "./ui.js?v=6";
 
-import { VirtualJoystick, JOYSTICK_DIRECTIONS } from "./joystick.js?v=5";
-import { VehicleWebSocket } from "./ws.js?v=5";
+import { VirtualJoystick, JOYSTICK_DIRECTIONS } from "./joystick.js?v=6";
+import { VehicleWebSocket } from "./ws.js?v=6";
 
 const state = {
   commands: [],

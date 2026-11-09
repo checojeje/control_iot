@@ -2,305 +2,239 @@
 <html lang="es" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="description" content="Control Remoto para Excavadora IoT" />
-  <meta name="theme-color" content="#0b0f17" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="Panel de Control para Vehículo IoT" />
+  <meta name="theme-color" content="#070b14" />
   <title>Control Vehículo IoT · Excavadora IoT</title>
 
-  <!-- Favicon propio del proyecto -->
+  <!-- Favicon relativo para GitHub Pages -->
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
 
-  <!-- Bootstrap 5.3 CSS -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-    crossorigin="anonymous"
-  />
-  <!-- Bootstrap Icons -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-  />
-  <!-- Estilos personalizados -->
-  <link rel="stylesheet" href="./assets/css/style.css?v=5" />
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap 5.3.3 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Bootstrap Icons 1.11.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+
+  <!-- Estilos personalizados dentro de assets/css -->
+  <link rel="stylesheet" href="./assets/css/style.css?v=6" />
 </head>
-<body class="app-viewport">
-
-  <!-- HEADER COMPACTO -->
-  <header class="app-header">
-    <div class="header-inner">
-      <div class="d-flex align-items-center gap-2">
-        <img src="./assets/favicon.svg" alt="Icono Control IoT" width="26" height="26" class="header-logo" />
-        <div>
-          <h1 id="vehicle-title" class="header-title mb-0">Excavadora IoT</h1>
+<body>
+  <div class="app-viewport">
+    <!-- BARRA SUPERIOR -->
+    <header class="app-topbar">
+      <div class="brand-group">
+        <div class="brand-emblem" aria-hidden="true">
+          <i class="bi bi-dpad-fill"></i>
+        </div>
+        <div class="brand-titles">
+          <h1 id="vehicle-title" class="vehicle-name">EXCAVADORA IOT</h1>
+          <span class="vehicle-subtitle">Centro de Control Remoto · Tiempo Real</span>
         </div>
       </div>
-      <button
-        id="btn-refresh-health"
-        type="button"
-        class="btn btn-sm btn-reconnect d-flex align-items-center gap-1"
-        title="Comprobar conexión"
-        aria-label="Comprobar conexión"
-      >
-        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-        <span>Sincronizar</span>
-      </button>
-    </div>
-  </header>
 
-  <!-- CONTENIDO PRINCIPAL SIN SCROLL -->
-  <main class="app-main">
+      <div class="topbar-actions">
+        <button id="btn-refresh-health" type="button" class="btn-reconnect" title="Verificar conexión">
+          <i class="bi bi-arrow-repeat"></i>
+          <span>Sincronizar</span>
+        </button>
+      </div>
+    </header>
 
-    <!-- PANEL DE CONECTIVIDAD (3 Indicadores en 1 fila integrada) -->
-    <section aria-label="Estado de Conectividad" class="connectivity-bar">
-      <div class="status-pill-card">
-        <div class="d-flex align-items-center gap-1">
-          <span id="status-dot-ws" class="status-dot status-connecting" aria-hidden="true"></span>
-          <i id="status-icon-ws" class="bi bi-broadcast text-warning status-icon" aria-hidden="true"></i>
+    <!-- 3 INDICADORES OBLIGATORIOS DE CONEXIÓN -->
+    <section class="status-strip" aria-label="Estado de conexión del sistema">
+      <div class="status-pill-card" id="pill-ws">
+        <div class="status-icon-wrap">
+          <i class="bi bi-broadcast"></i>
+        </div>
+        <div class="status-info">
           <span class="status-title">WebSocket</span>
+          <div class="status-state-row">
+            <span id="status-ws-dot" class="status-dot checking"></span>
+            <span id="status-ws-text" class="status-badge checking">Conectando</span>
+          </div>
         </div>
-        <span id="status-text-ws" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
-          Conectando
-        </span>
       </div>
 
-      <div class="status-pill-card">
-        <div class="d-flex align-items-center gap-1">
-          <span id="status-dot-api" class="status-dot status-connecting" aria-hidden="true"></span>
-          <i id="status-icon-api" class="bi bi-cloud-check text-warning status-icon" aria-hidden="true"></i>
-          <span class="status-title">Servidor AWS</span>
+      <div class="status-pill-card" id="pill-api">
+        <div class="status-icon-wrap">
+          <i class="bi bi-cloud-check-fill"></i>
         </div>
-        <span id="status-text-api" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
-          Comprobando
-        </span>
+        <div class="status-info">
+          <span class="status-title">API AWS · 21 servicios</span>
+          <div class="status-state-row">
+            <span id="status-api-dot" class="status-dot checking"></span>
+            <span id="status-api-text" class="status-badge checking">Comprobando</span>
+          </div>
+        </div>
       </div>
 
-      <div class="status-pill-card">
-        <div class="d-flex align-items-center gap-1">
-          <span id="status-dot-rds" class="status-dot status-connecting" aria-hidden="true"></span>
-          <i id="status-icon-rds" class="bi bi-database-check text-warning status-icon" aria-hidden="true"></i>
-          <span class="status-title">Amazon RDS</span>
+      <div class="status-pill-card" id="pill-rds">
+        <div class="status-icon-wrap">
+          <i class="bi bi-database-fill-check"></i>
         </div>
-        <span id="status-text-rds" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
-          Sin verificar
-        </span>
+        <div class="status-info">
+          <span class="status-title">Base de datos · Amazon RDS</span>
+          <div class="status-state-row">
+            <span id="status-rds-dot" class="status-dot checking"></span>
+            <span id="status-rds-text" class="status-badge checking">Sin verificar</span>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- ALERTAS FLOTANTES -->
-    <div id="alert-container" class="floating-alerts" aria-live="assertive"></div>
+    <!-- ALERTA FLOTANTE DE AVISOS -->
+    <div id="error-banner" class="toast-alert d-none" role="alert" aria-live="assertive">
+      <div class="toast-alert-content">
+        <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+        <span id="error-banner-msg">Aviso de conexión</span>
+      </div>
+      <button type="button" id="btn-close-error" class="btn-toast-close" aria-label="Cerrar aviso">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
 
-    <!-- GRILLA PRINCIPAL DE CONTROL -->
-    <div class="control-grid">
-
-      <!-- PANEL IZQUIERDO / SUPERIOR: JOYSTICK Y BOTÓN DETENER -->
-      <section class="glass-card panel-joystick" aria-labelledby="joystick-heading">
-        <div class="card-top-bar">
-          <h2 id="joystick-heading" class="panel-title mb-0">
-            <i class="bi bi-joystick text-info" aria-hidden="true"></i>
+    <!-- PANEL CENTRAL DE OPERACIÓN (CERO SCROLL) -->
+    <main class="cockpit-grid">
+      <!-- COLUMNA IZQUIERDA: JOYSTICK + TELEMETRÍA + DETENER -->
+      <section class="glass-card card-joystick" aria-label="Control de dirección">
+        <div class="card-header-bar">
+          <div class="card-title-group">
+            <span class="header-icon-chip"><i class="bi bi-joystick"></i></span>
             <span>Control de Dirección</span>
-          </h2>
-          <span id="active-command-badge" class="badge rounded-pill text-bg-secondary cmd-badge" aria-live="polite">
-            Detener
-          </span>
+          </div>
+          <span id="active-command-badge" class="command-pill neutral">En espera</span>
         </div>
 
-        <div class="joystick-body">
-          <!-- Contenedor Circular del Joystick -->
-          <div class="joystick-wrapper">
-            <div
-              id="joystick-zone"
-              class="joystick-base"
-              role="application"
-              aria-label="Joystick direccional"
-              tabindex="0"
-            >
-              <span class="joystick-guide guide-up" aria-hidden="true"><i class="bi bi-caret-up-fill"></i></span>
-              <span class="joystick-guide guide-right" aria-hidden="true"><i class="bi bi-caret-right-fill"></i></span>
-              <span class="joystick-guide guide-down" aria-hidden="true"><i class="bi bi-caret-down-fill"></i></span>
-              <span class="joystick-guide guide-left" aria-hidden="true"><i class="bi bi-caret-left-fill"></i></span>
+        <div class="joystick-cockpit-body">
+          <!-- ZONA DEL ARO DEL JOYSTICK -->
+          <div class="joystick-arena">
+            <span class="dir-hint dir-up">▲ AVANZAR</span>
+            <span class="dir-hint dir-left">◄ IZQ</span>
+            <span class="dir-hint dir-right">DER ►</span>
+            <span class="dir-hint dir-down">▼ ATRÁS</span>
 
-              <div id="joystick-knob" class="joystick-knob">
-                <i class="bi bi-arrows-move" aria-hidden="true"></i>
+            <div id="joystick-base" class="joystick-base" role="slider" aria-label="Joystick de dirección" tabindex="0">
+              <div class="joystick-ring-outer"></div>
+              <div class="joystick-ring-inner"></div>
+              <div class="joystick-crosshair-h"></div>
+              <div class="joystick-crosshair-v"></div>
+              <i class="bi bi-caret-up-fill joy-arrow up"></i>
+              <i class="bi bi-caret-down-fill joy-arrow down"></i>
+              <i class="bi bi-caret-left-fill joy-arrow left"></i>
+              <i class="bi bi-caret-right-fill joy-arrow right"></i>
+
+              <div id="joystick-handle" class="joystick-handle">
+                <div class="joystick-handle-core">
+                  <i class="bi bi-arrows-move"></i>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Píldoras de telemetría -->
-          <div class="telemetry-bar">
-            <div class="telemetry-chip">
-              <span class="telemetry-label">Ángulo</span>
-              <strong id="joystick-angle" class="telemetry-value">0°</strong>
+          <!-- LATERAL / INFERIOR: TELEMETRÍA + BOTÓN DETENER -->
+          <div class="joystick-side-controls">
+            <div class="telemetry-bar">
+              <div class="telemetry-chip">
+                <span class="telemetry-label">ÁNGULO</span>
+                <strong id="joy-angle" class="telemetry-val">0°</strong>
+              </div>
+              <div class="telemetry-chip">
+                <span class="telemetry-label">POTENCIA</span>
+                <strong id="joy-distance" class="telemetry-val">0%</strong>
+              </div>
+              <div class="telemetry-chip telemetry-chip-dir">
+                <span class="telemetry-label">DIRECCIÓN</span>
+                <strong id="joy-direction" class="telemetry-val text-info">En espera</strong>
+              </div>
             </div>
-            <div class="telemetry-chip">
-              <span class="telemetry-label">Potencia</span>
-              <strong id="joystick-force" class="telemetry-value">0%</strong>
-            </div>
-            <div class="telemetry-chip">
-              <span class="telemetry-label">Movimiento</span>
-              <strong id="joystick-direction" class="telemetry-value text-info">Detener</strong>
-            </div>
-          </div>
 
-          <!-- BOTÓN DE DETENER PRIORITARIO -->
-          <button
-            id="btn-emergency-stop"
-            type="button"
-            data-cmd-id="13"
-            data-cmd-name="Detener"
-            class="btn-stop-vehicle"
-            aria-label="Detener vehículo inmediatamente"
-          >
-            <i class="bi bi-octagon-fill" aria-hidden="true"></i>
-            <span>DETENER VEHÍCULO</span>
-          </button>
+            <!-- BOTÓN PRIORITARIO DETENER VEHÍCULO -->
+            <button id="btn-priority-stop" type="button" class="btn-stop-vehicle">
+              <span class="stop-icon-circle"><i class="bi bi-sign-stop-fill"></i></span>
+              <div class="stop-text-group">
+                <span class="stop-main-label">DETENER VEHÍCULO</span>
+                <span class="stop-sub-label">Paro inmediato de emergencia</span>
+              </div>
+            </button>
+          </div>
         </div>
       </section>
 
-      <!-- PANEL DERECHO / INFERIOR: FUNCIONES Y MODO DEMO -->
-      <div class="panel-actions-wrapper">
-
+      <!-- COLUMNA DERECHA: FUNCIONES DEL VEHÍCULO + MODO DEMO -->
+      <div class="right-column-stack">
         <!-- FUNCIONES DEL VEHÍCULO -->
-        <section class="glass-card panel-controls" aria-labelledby="actions-heading">
-          <div class="card-top-bar">
-            <h2 id="actions-heading" class="panel-title mb-0">
-              <i class="bi bi-sliders2 text-warning" aria-hidden="true"></i>
+        <section class="glass-card card-actions" aria-label="Funciones del vehículo">
+          <div class="card-header-bar">
+            <div class="card-title-group">
+              <span class="header-icon-chip"><i class="bi bi-grid-1x2-fill"></i></span>
               <span>Funciones del Vehículo</span>
-            </h2>
-            <small id="dispatch-state-badge" class="badge rounded-pill text-bg-secondary cmd-badge">Listo</small>
+            </div>
+            <span id="catalog-status-badge" class="panel-tag">7 Comandos Activos</span>
           </div>
 
-          <div id="commands-container" class="actions-grid">
-            <button
-              type="button"
-              class="btn-action-cmd action-cyan span-3"
-              data-cmd-id="3"
-              data-cmd-name="Cabina Izquierda"
-            >
-              <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-              <span>Cabina Izq.</span>
-            </button>
-
-            <button
-              type="button"
-              class="btn-action-cmd action-cyan span-3"
-              data-cmd-id="4"
-              data-cmd-name="Cabina Derecha"
-            >
-              <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-              <span>Cabina Der.</span>
-            </button>
-
-            <button
-              type="button"
-              class="btn-action-cmd action-amber span-3"
-              data-cmd-id="7"
-              data-cmd-name="Bajar Garra"
-            >
-              <i class="bi bi-arrow-down-circle-fill" aria-hidden="true"></i>
-              <span>Bajar Garra</span>
-            </button>
-
-            <button
-              type="button"
-              class="btn-action-cmd action-amber span-3"
-              data-cmd-id="8"
-              data-cmd-name="Subir Garra"
-            >
-              <i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i>
-              <span>Subir Garra</span>
-            </button>
-
-            <button
-              type="button"
-              class="btn-action-cmd action-neutral span-2"
-              data-cmd-id="9"
-              data-cmd-name="Luz"
-            >
-              <i class="bi bi-lightbulb-fill text-warning" aria-hidden="true"></i>
-              <span>Luz</span>
-            </button>
-
-            <button
-              type="button"
-              class="btn-action-cmd action-neutral span-2"
-              data-cmd-id="10"
-              data-cmd-name="Sonido"
-            >
-              <i class="bi bi-volume-up-fill text-info" aria-hidden="true"></i>
-              <span>Sonido</span>
-            </button>
-
-            <button
-              type="button"
-              class="btn-action-cmd action-neutral span-2"
-              data-cmd-id="11"
-              data-cmd-name="Velocidad"
-            >
-              <i class="bi bi-speedometer2 text-success" aria-hidden="true"></i>
-              <span>Velocidad</span>
-            </button>
+          <div id="secondary-controls-grid" class="actions-grid">
+            <!-- Botones generados dinámicamente ocupando todo el espacio -->
           </div>
         </section>
 
         <!-- MODO DEMO -->
-        <section class="glass-card panel-demo" aria-labelledby="demos-heading">
-          <div class="card-top-bar">
-            <h2 id="demos-heading" class="panel-title mb-0">
-              <i class="bi bi-play-circle-fill text-success" aria-hidden="true"></i>
-              <span>Secuencia Automática (DEMO)</span>
-            </h2>
-            <span id="demo-status-badge" class="badge rounded-pill text-bg-secondary cmd-badge" aria-live="polite">
-              Inactivo
-            </span>
+        <section class="glass-card card-demo" aria-label="Modo automático DEMO">
+          <div class="card-header-bar">
+            <div class="card-title-group">
+              <span class="header-icon-chip chip-emerald"><i class="bi bi-play-btn-fill"></i></span>
+              <span>Modo Automático (DEMO)</span>
+            </div>
+            <span id="demo-status-badge" class="panel-tag">Inactivo</span>
           </div>
 
           <div class="demo-body">
-            <select
-              id="select-demo"
-              class="form-select demo-select"
-              aria-label="Seleccionar rutina DEMO"
-            >
-              <option value="1" selected>Demo principal</option>
-            </select>
-            <div class="demo-actions">
-              <button
-                id="btn-start-demo"
-                type="button"
-                class="btn-demo-start"
-              >
-                <i class="bi bi-play-fill" aria-hidden="true"></i>
-                <span>Iniciar DEMO</span>
-              </button>
-              <button
-                id="btn-cancel-demo"
-                type="button"
-                class="btn-demo-cancel"
-              >
-                <i class="bi bi-stop-fill" aria-hidden="true"></i>
-                <span>Cancelar</span>
-              </button>
+            <div class="demo-controls-row">
+              <div class="demo-select-group">
+                <i class="bi bi-Cpu-fill demo-select-icon bi-cpu-fill"></i>
+                <select id="select-demo" class="form-select demo-select" aria-label="Seleccionar secuencia DEMO">
+                  <option value="1">Demo principal</option>
+                </select>
+              </div>
+
+              <div class="demo-buttons-row">
+                <button id="btn-start-demo" type="button" class="btn-demo-start">
+                  <i class="bi bi-play-fill"></i>
+                  <span>Iniciar DEMO</span>
+                </button>
+                <button id="btn-cancel-demo" type="button" class="btn-demo-cancel" disabled>
+                  <i class="bi bi-stop-fill"></i>
+                  <span>Cancelar</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- PROGRESO DE DEMO -->
+            <div id="demo-progress-container" class="demo-progress-box d-none">
+              <div class="demo-progress-labels">
+                <span id="demo-step-text">Ejecutando secuencia...</span>
+                <span id="demo-step-counter">0%</span>
+              </div>
+              <div class="progress demo-progress-track">
+                <div id="demo-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: 0%"></div>
+              </div>
             </div>
           </div>
         </section>
-
       </div>
-    </div>
-  </main>
+    </main>
 
-  <!-- FOOTER OBLIGATORIO -->
-  <footer class="app-footer">
-    <small>Desarrollado por Jesús Sergio Quiroz Guzmán · 2026</small>
-  </footer>
+    <!-- CRÉDITOS OBLIGATORIOS AL PIE -->
+    <footer class="app-footer">
+      <span>Desarrollado por Jesús Sergio Quiroz Guzmán · 2026</span>
+    </footer>
+  </div>
 
-  <!-- Bootstrap 5.3 JS Bundle -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-    crossorigin="anonymous"
-  ></script>
-  <!-- Punto de entrada ES6 Module -->
-  <script type="module" src="./assets/js/app.js?v=5"></script>
+  <!-- Lógica modular ES6 dentro de assets/js -->
+  <script type="module" src="./assets/js/app.js?v=6"></script>
 </body>
 </html>
