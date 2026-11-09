@@ -2,12 +2,12 @@
 <html lang="es" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-  <meta name="description" content="Aplicación Web de Control IoT para Excavadora IoT - Integración REST y WebSocket WSS en AWS" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="Control Remoto para Excavadora IoT" />
   <meta name="theme-color" content="#0d1015" />
   <title>Control Vehículo IoT · Excavadora IoT</title>
 
-  <!-- Favicon propio del proyecto (ruta relativa compatible con subrutas de GitHub Pages) -->
+  <!-- Favicon propio del proyecto -->
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
 
   <!-- Bootstrap 5.3 CSS -->
@@ -22,263 +22,226 @@
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
   />
-  <!-- Estilos personalizados (ruta relativa para GitHub Pages) -->
-  <link rel="stylesheet" href="./assets/css/style.css?v=3" />
+  <!-- Estilos personalizados -->
+  <link rel="stylesheet" href="./assets/css/style.css?v=4" />
 </head>
-<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+<body class="app-viewport bg-body-tertiary">
 
-  <!-- HEADER / BARRA SUPERIOR -->
-  <header class="navbar navbar-dark bg-dark border-bottom border-secondary-subtle shadow-sm py-2">
-    <div class="container-fluid px-3 d-flex justify-content-between align-items-center">
+  <!-- HEADER COMPACTO -->
+  <header class="app-header navbar navbar-dark bg-dark border-bottom border-secondary-subtle px-3">
+    <div class="container-fluid px-0 d-flex justify-content-between align-items-center">
       <div class="d-flex align-items-center gap-2">
-        <img src="./assets/favicon.svg" alt="Icono Control IoT" width="30" height="30" />
-        <div>
-          <h1 id="vehicle-title" class="h6 mb-0 fw-bold text-uppercase tracking-wide">Excavadora IoT</h1>
-          <small id="vehicle-subtitle" class="text-secondary" style="font-size: 0.72rem;">
-            Módulo de Control · Vehículo ID #1 (ESP8266)
-          </small>
-        </div>
+        <img src="./assets/favicon.svg" alt="Icono Control IoT" width="24" height="24" />
+        <h1 id="vehicle-title" class="h6 mb-0 fw-bold text-uppercase tracking-wide">Excavadora IoT</h1>
       </div>
       <button
         id="btn-refresh-health"
         type="button"
-        class="btn btn-sm btn-outline-info d-flex align-items-center gap-1"
-        title="Comprobar estado de servicios en AWS y Amazon RDS"
-        aria-label="Comprobar conectividad con servidor AWS, Amazon RDS y WebSocket"
+        class="btn btn-sm btn-outline-info py-0 px-2 d-flex align-items-center gap-1"
+        title="Comprobar conexión"
+        aria-label="Comprobar conexión"
       >
         <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-        <span class="d-none d-sm-inline">Verificar Servicios</span>
+        <span class="small">Conectar</span>
       </button>
     </div>
   </header>
 
-  <!-- CONTENIDO PRINCIPAL (Mobile First) -->
-  <main class="container py-3 flex-grow-1">
+  <!-- CONTENIDO PRINCIPAL SIN SCROLL -->
+  <main class="app-main container-fluid px-2 px-md-3">
 
-    <!-- PANEL DE CONECTIVIDAD (3 Indicadores Reales y Diferenciados) -->
-    <section aria-label="Panel de Conectividad de Servicios" class="mb-3">
-      <div class="card bg-dark border-secondary-subtle shadow-sm">
-        <div class="card-body py-2 px-3">
-          <div class="row g-2 text-center align-items-center">
-
-            <!-- Indicador 1: WebSocket WSS (En línea / Conectando-Reconectando / Desconectado) -->
-            <div class="col-12 col-sm-4">
-              <div class="d-flex align-items-center justify-content-between justify-content-sm-center gap-2 py-1 px-2">
-                <div class="d-flex align-items-center gap-2">
-                  <span id="status-dot-ws" class="status-dot status-connecting" aria-hidden="true"></span>
-                  <i id="status-icon-ws" class="bi bi-broadcast text-warning" aria-hidden="true"></i>
-                  <span class="small fw-semibold">WebSocket WSS</span>
-                </div>
-                <span id="status-text-ws" class="badge rounded-pill text-bg-warning" aria-live="polite">
-                  Conectando-Reconectando
-                </span>
+    <!-- PANEL DE CONECTIVIDAD COMPACTO (3 Indicadores en 1 sola fila) -->
+    <section aria-label="Estado de Conectividad" class="connectivity-bar card bg-dark border-secondary-subtle">
+      <div class="card-body py-1 px-2">
+        <div class="row g-1 text-center align-items-center">
+          <!-- Indicador 1: WebSocket WSS -->
+          <div class="col-4">
+            <div class="status-item">
+              <div class="d-flex align-items-center justify-content-center gap-1">
+                <span id="status-dot-ws" class="status-dot status-connecting" aria-hidden="true"></span>
+                <i id="status-icon-ws" class="bi bi-broadcast text-warning status-icon" aria-hidden="true"></i>
+                <span class="status-title">WebSocket</span>
               </div>
+              <span id="status-text-ws" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
+                Conectando
+              </span>
             </div>
-
-            <!-- Indicador 2: Servidor AWS de 21 APIs (Disponible / Comprobando / No disponible) -->
-            <div class="col-12 col-sm-4 border-top border-bottom border-sm-0 border-secondary-subtle">
-              <div class="d-flex align-items-center justify-content-between justify-content-sm-center gap-2 py-1 px-2">
-                <div class="d-flex align-items-center gap-2">
-                  <span id="status-dot-api" class="status-dot status-connecting" aria-hidden="true"></span>
-                  <i id="status-icon-api" class="bi bi-cloud-check text-warning" aria-hidden="true"></i>
-                  <span class="small fw-semibold">Servidor AWS (21 APIs)</span>
-                </div>
-                <span id="status-text-api" class="badge rounded-pill text-bg-warning" aria-live="polite">
-                  Comprobando
-                </span>
-              </div>
-            </div>
-
-            <!-- Indicador 3: Amazon RDS (Disponible / No disponible / Sin verificar) -->
-            <div class="col-12 col-sm-4">
-              <div class="d-flex align-items-center justify-content-between justify-content-sm-center gap-2 py-1 px-2">
-                <div class="d-flex align-items-center gap-2">
-                  <span id="status-dot-rds" class="status-dot status-connecting" aria-hidden="true"></span>
-                  <i id="status-icon-rds" class="bi bi-database-check text-warning" aria-hidden="true"></i>
-                  <span class="small fw-semibold">Amazon RDS</span>
-                </div>
-                <span id="status-text-rds" class="badge rounded-pill text-bg-warning" aria-live="polite">
-                  Sin verificar
-                </span>
-              </div>
-            </div>
-
           </div>
-          <div class="border-top border-secondary-subtle mt-2 pt-1 text-center">
-            <small class="text-secondary" style="font-size: 0.7rem;">
-              <i class="bi bi-shield-check text-info me-1" aria-hidden="true"></i>
-              Nota: El estado «En línea» de WebSocket WSS refleja la sesión del navegador con AWS, no la conexión física confirmada del ESP8266/ESP32.
-            </small>
+
+          <!-- Indicador 2: Servidor AWS -->
+          <div class="col-4 border-start border-end border-secondary-subtle">
+            <div class="status-item">
+              <div class="d-flex align-items-center justify-content-center gap-1">
+                <span id="status-dot-api" class="status-dot status-connecting" aria-hidden="true"></span>
+                <i id="status-icon-api" class="bi bi-cloud-check text-warning status-icon" aria-hidden="true"></i>
+                <span class="status-title">Servidor AWS</span>
+              </div>
+              <span id="status-text-api" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
+                Comprobando
+              </span>
+            </div>
+          </div>
+
+          <!-- Indicador 3: Amazon RDS -->
+          <div class="col-4">
+            <div class="status-item">
+              <div class="d-flex align-items-center justify-content-center gap-1">
+                <span id="status-dot-rds" class="status-dot status-connecting" aria-hidden="true"></span>
+                <i id="status-icon-rds" class="bi bi-database-check text-warning status-icon" aria-hidden="true"></i>
+                <span class="status-title">Amazon RDS</span>
+              </div>
+              <span id="status-text-rds" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
+                Sin verificar
+              </span>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- BANNER DE ALERTAS Y MENSAJES DE ACCIÓN -->
-    <div id="alert-container" aria-live="assertive" class="mb-3"></div>
+    <!-- ALERTAS FLOTANTES (No empujan el layout ni generan scroll) -->
+    <div id="alert-container" class="floating-alerts" aria-live="assertive"></div>
 
-    <!-- GRILLA PRINCIPAL DE CONTROL -->
-    <div class="row g-3">
+    <!-- GRILLA PRINCIPAL ADAPTATIVA -->
+    <div class="control-grid">
 
-      <!-- COLUMNA IZQUIERDA / PRINCIPAL: JOYSTICK Y BOTÓN DETENER PRIORITARIO -->
-      <div class="col-12 col-lg-7">
-        <section class="card bg-dark border-secondary-subtle shadow-sm h-100" aria-labelledby="joystick-heading">
-          <div class="card-header bg-transparent border-secondary-subtle d-flex justify-content-between align-items-center py-2">
-            <h2 id="joystick-heading" class="h6 mb-0 d-flex align-items-center gap-2">
-              <i class="bi bi-joystick text-info" aria-hidden="true"></i>
-              <span>Joystick Direccional (Táctil / Mouse / Teclado)</span>
-            </h2>
-            <span id="active-command-badge" class="badge rounded-pill text-bg-secondary" aria-live="polite">
-              Detener (ID: 13)
-            </span>
-          </div>
+      <!-- PANEL IZQUIERDO / SUPERIOR: JOYSTICK Y BOTÓN DETENER -->
+      <section class="card bg-dark border-secondary-subtle panel-joystick" aria-labelledby="joystick-heading">
+        <div class="card-header bg-transparent border-secondary-subtle d-flex justify-content-between align-items-center py-1 px-3">
+          <h2 id="joystick-heading" class="panel-title mb-0 d-flex align-items-center gap-1">
+            <i class="bi bi-joystick text-info" aria-hidden="true"></i>
+            <span>Dirección</span>
+          </h2>
+          <span id="active-command-badge" class="badge rounded-pill text-bg-secondary" aria-live="polite">
+            Detener
+          </span>
+        </div>
 
-          <div class="card-body d-flex flex-column align-items-center justify-content-between py-4">
-            <!-- Contenedor Circular del Joystick -->
-            <div class="joystick-wrapper my-2">
-              <div
-                id="joystick-zone"
-                class="joystick-base"
-                role="application"
-                aria-label="Joystick direccional. Usa arrastrar táctil/mouse o las flechas del teclado para mover; suelta o presiona Espacio para Detener."
-                tabindex="0"
-              >
-                <!-- Guías cardinales con los IDs reales del catálogo en AWS -->
-                <span class="joystick-guide guide-up" aria-hidden="true" title="Avanzar (ID: 1)">
-                  <i class="bi bi-caret-up-fill"></i>
-                </span>
-                <span class="joystick-guide guide-right" aria-hidden="true" title="Girar Derecha (ID: 5)">
-                  <i class="bi bi-caret-right-fill"></i>
-                </span>
-                <span class="joystick-guide guide-down" aria-hidden="true" title="Retroceder (ID: 2)">
-                  <i class="bi bi-caret-down-fill"></i>
-                </span>
-                <span class="joystick-guide guide-left" aria-hidden="true" title="Girar Izquierda (ID: 6)">
-                  <i class="bi bi-caret-left-fill"></i>
-                </span>
+        <div class="card-body d-flex flex-column align-items-center justify-content-around py-2 px-2">
+          <!-- Contenedor Circular del Joystick -->
+          <div class="joystick-wrapper">
+            <div
+              id="joystick-zone"
+              class="joystick-base"
+              role="application"
+              aria-label="Joystick direccional"
+              tabindex="0"
+            >
+              <span class="joystick-guide guide-up" aria-hidden="true"><i class="bi bi-caret-up-fill"></i></span>
+              <span class="joystick-guide guide-right" aria-hidden="true"><i class="bi bi-caret-right-fill"></i></span>
+              <span class="joystick-guide guide-down" aria-hidden="true"><i class="bi bi-caret-down-fill"></i></span>
+              <span class="joystick-guide guide-left" aria-hidden="true"><i class="bi bi-caret-left-fill"></i></span>
 
-                <!-- Perilla (Knob) arrastrable con retorno automático al centro -->
-                <div id="joystick-knob" class="joystick-knob">
-                  <i class="bi bi-arrows-move" aria-hidden="true"></i>
-                </div>
+              <div id="joystick-knob" class="joystick-knob">
+                <i class="bi bi-arrows-move" aria-hidden="true"></i>
               </div>
             </div>
-
-            <!-- Estado de dirección actual del Joystick -->
-            <div class="d-flex flex-wrap justify-content-center gap-3 text-secondary small my-2">
-              <span>Ángulo: <strong id="joystick-angle" class="text-light">0°</strong></span>
-              <span>Desplazamiento: <strong id="joystick-force" class="text-light">0%</strong></span>
-              <span>Dirección: <strong id="joystick-direction" class="text-info">Neutral (Detener)</strong></span>
-            </div>
-
-            <!-- BOTÓN DE DETENER MUY VISIBLE Y CON PRIORIDAD ABSOLUTA (id_comando = 13) -->
-            <div class="w-100 mt-3 px-2">
-              <button
-                id="btn-emergency-stop"
-                type="button"
-                data-cmd-id="13"
-                data-cmd-name="Detener"
-                class="btn btn-danger btn-lg w-100 fw-bold text-uppercase shadow d-flex align-items-center justify-content-center gap-2 py-3"
-                aria-label="Detener inmediatamente cualquier movimiento del vehículo"
-              >
-                <i class="bi bi-octagon-fill fs-5" aria-hidden="true"></i>
-                <span>DETENER VEHÍCULO (ID: 13)</span>
-              </button>
-            </div>
           </div>
-        </section>
-      </div>
 
-      <!-- COLUMNA DERECHA / SECUNDARIA: BOTONES DEL CATÁLOGO, DEMOS Y FEEDBACK DE CONTROL -->
-      <div class="col-12 col-lg-5 d-flex flex-column gap-3">
+          <!-- Indicador compacto de dirección -->
+          <div class="d-flex justify-content-center gap-3 text-secondary telemetry-row">
+            <span>Ángulo: <strong id="joystick-angle" class="text-light">0°</strong></span>
+            <span>Fuerza: <strong id="joystick-force" class="text-light">0%</strong></span>
+            <span>Estado: <strong id="joystick-direction" class="text-info">Detener</strong></span>
+          </div>
 
-        <!-- TARJETA DE BOTONES SECUNDARIOS DEL CATÁLOGO (IDs 3, 4, 7, 8, 9, 10, 11) -->
-        <section class="card bg-dark border-secondary-subtle shadow-sm" aria-labelledby="actions-heading">
-          <div class="card-header bg-transparent border-secondary-subtle d-flex justify-content-between align-items-center py-2">
-            <h2 id="actions-heading" class="h6 mb-0 d-flex align-items-center gap-2">
+          <!-- BOTÓN DE DETENER PRIORITARIO -->
+          <div class="w-100 px-1">
+            <button
+              id="btn-emergency-stop"
+              type="button"
+              data-cmd-id="13"
+              data-cmd-name="Detener"
+              class="btn btn-danger w-100 fw-bold text-uppercase shadow-sm d-flex align-items-center justify-content-center gap-2"
+              aria-label="Detener vehículo inmediatamente"
+            >
+              <i class="bi bi-octagon-fill" aria-hidden="true"></i>
+              <span>DETENER VEHÍCULO</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL DERECHO / INFERIOR: CONTROLES Y RUTINAS DEMO -->
+      <div class="panel-actions-wrapper">
+
+        <!-- CONTROLES DEL VEHÍCULO -->
+        <section class="card bg-dark border-secondary-subtle panel-controls" aria-labelledby="actions-heading">
+          <div class="card-header bg-transparent border-secondary-subtle d-flex justify-content-between align-items-center py-1 px-3">
+            <h2 id="actions-heading" class="panel-title mb-0 d-flex align-items-center gap-1">
               <i class="bi bi-grid-3x3-gap-fill text-warning" aria-hidden="true"></i>
-              <span>Controles Secundarios del Catálogo</span>
+              <span>Funciones del Vehículo</span>
             </h2>
             <small id="dispatch-state-badge" class="badge text-bg-secondary">Listo</small>
           </div>
-          <div class="card-body">
-            <p class="text-secondary small mb-2">
-              Operaciones disponibles para <strong>Excavadora IoT</strong> (<code>GET /api/vehiculos/1/comandos</code>):
-            </p>
-            <div id="commands-container" class="row g-2">
-              <div class="col-6">
+          <div class="card-body py-2 px-2 d-flex align-items-center">
+            <div id="commands-container" class="row g-1 g-sm-2 w-100 m-0">
+              <div class="col-6 p-1">
                 <button
                   type="button"
                   class="btn btn-outline-info w-100 btn-action-cmd"
                   data-cmd-id="3"
                   data-cmd-name="Cabina Izquierda"
-                  title="Girar cabina a la izquierda (Código: 3)"
                 >
-                  <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i> Cabina Izquierda
+                  <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i> Cabina Izq.
                 </button>
               </div>
-              <div class="col-6">
+              <div class="col-6 p-1">
                 <button
                   type="button"
                   class="btn btn-outline-info w-100 btn-action-cmd"
                   data-cmd-id="4"
                   data-cmd-name="Cabina Derecha"
-                  title="Girar cabina a la derecha (Código: 4)"
                 >
-                  <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i> Cabina Derecha
+                  <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i> Cabina Der.
                 </button>
               </div>
-              <div class="col-6">
+              <div class="col-6 p-1">
                 <button
                   type="button"
                   class="btn btn-outline-warning w-100 btn-action-cmd"
                   data-cmd-id="7"
                   data-cmd-name="Bajar Garra"
-                  title="Bajar la garra (Código: 7)"
                 >
                   <i class="bi bi-arrow-down-circle-fill me-1" aria-hidden="true"></i> Bajar Garra
                 </button>
               </div>
-              <div class="col-6">
+              <div class="col-6 p-1">
                 <button
                   type="button"
                   class="btn btn-outline-warning w-100 btn-action-cmd"
                   data-cmd-id="8"
                   data-cmd-name="Subir Garra"
-                  title="Subir la garra (Código: 8)"
                 >
                   <i class="bi bi-arrow-up-circle-fill me-1" aria-hidden="true"></i> Subir Garra
                 </button>
               </div>
-              <div class="col-4">
+              <div class="col-4 p-1">
                 <button
                   type="button"
                   class="btn btn-outline-light w-100 btn-action-cmd"
                   data-cmd-id="9"
                   data-cmd-name="Luz"
-                  title="Encender o apagar luz (Código: 9)"
                 >
                   <i class="bi bi-lightbulb-fill me-1 text-warning" aria-hidden="true"></i> Luz
                 </button>
               </div>
-              <div class="col-4">
+              <div class="col-4 p-1">
                 <button
                   type="button"
                   class="btn btn-outline-light w-100 btn-action-cmd"
                   data-cmd-id="10"
                   data-cmd-name="Sonido"
-                  title="Activar sonido (Código: 10)"
                 >
                   <i class="bi bi-volume-up-fill me-1 text-info" aria-hidden="true"></i> Sonido
                 </button>
               </div>
-              <div class="col-4">
+              <div class="col-4 p-1">
                 <button
                   type="button"
                   class="btn btn-outline-light w-100 btn-action-cmd"
                   data-cmd-id="11"
                   data-cmd-name="Velocidad"
-                  title="Ajustar velocidad del vehículo (Código: 11)"
                 >
                   <i class="bi bi-speedometer2 me-1 text-success" aria-hidden="true"></i> Velocidad
                 </button>
@@ -287,29 +250,28 @@
           </div>
         </section>
 
-        <!-- TARJETA DE EJECUCIÓN DE SECUENCIAS DEMO (Sin CRUD) -->
-        <section class="card bg-dark border-secondary-subtle shadow-sm" aria-labelledby="demos-heading">
-          <div class="card-header bg-transparent border-secondary-subtle d-flex justify-content-between align-items-center py-2">
-            <h2 id="demos-heading" class="h6 mb-0 d-flex align-items-center gap-2">
+        <!-- RUTINAS DEMO -->
+        <section class="card bg-dark border-secondary-subtle panel-demo" aria-labelledby="demos-heading">
+          <div class="card-header bg-transparent border-secondary-subtle d-flex justify-content-between align-items-center py-1 px-3">
+            <h2 id="demos-heading" class="panel-title mb-0 d-flex align-items-center gap-1">
               <i class="bi bi-play-btn-fill text-success" aria-hidden="true"></i>
-              <span>Ejecución de Secuencia DEMO</span>
+              <span>Modo DEMO</span>
             </h2>
             <span id="demo-status-badge" class="badge text-bg-secondary" aria-live="polite">Inactivo</span>
           </div>
-          <div class="card-body">
-            <div class="mb-3">
-              <label for="select-demo" class="form-label small text-secondary mb-1">
-                Selecciona una DEMO registrada en el backend:
-              </label>
-              <select id="select-demo" class="form-select bg-body-tertiary text-light border-secondary">
-                <option value="1" selected>Demo principal (Secuencia automática de movimientos del vehículo)</option>
-              </select>
-            </div>
+          <div class="card-body py-2 px-2 d-flex flex-column justify-content-center gap-2">
+            <select
+              id="select-demo"
+              class="form-select form-select-sm bg-body-tertiary text-light border-secondary"
+              aria-label="Seleccionar rutina DEMO"
+            >
+              <option value="1" selected>Demo principal</option>
+            </select>
             <div class="d-flex gap-2">
               <button
                 id="btn-start-demo"
                 type="button"
-                class="btn btn-success flex-grow-1 d-flex align-items-center justify-content-center gap-1 fw-semibold"
+                class="btn btn-sm btn-success flex-grow-1 d-flex align-items-center justify-content-center gap-1 fw-semibold demo-btn"
               >
                 <i class="bi bi-play-fill" aria-hidden="true"></i>
                 <span>Iniciar DEMO</span>
@@ -317,31 +279,12 @@
               <button
                 id="btn-cancel-demo"
                 type="button"
-                class="btn btn-outline-warning d-flex align-items-center justify-content-center gap-1 fw-semibold"
-                title="Detener/Cancelar ejecución de DEMO inmediatamente"
+                class="btn btn-sm btn-outline-warning d-flex align-items-center justify-content-center gap-1 fw-semibold demo-btn"
               >
                 <i class="bi bi-stop-fill" aria-hidden="true"></i>
-                <span>Cancelar / Detener</span>
+                <span>Cancelar</span>
               </button>
             </div>
-          </div>
-        </section>
-
-        <!-- TARJETA DE RETROALIMENTACIÓN DE SOLICITUDES DE CONTROL (No es módulo de monitoreo) -->
-        <section class="card bg-dark border-secondary-subtle shadow-sm flex-grow-1" aria-labelledby="log-heading">
-          <div class="card-header bg-transparent border-secondary-subtle d-flex justify-content-between align-items-center py-2">
-            <h2 id="log-heading" class="h6 mb-0 d-flex align-items-center gap-2">
-              <i class="bi bi-activity text-info" aria-hidden="true"></i>
-              <span>Bitácora de Despacho de Comandos</span>
-            </h2>
-            <button id="btn-clear-log" type="button" class="btn btn-sm btn-link text-secondary text-decoration-none p-0">
-              Limpiar
-            </button>
-          </div>
-          <div class="card-body p-2">
-            <ul id="event-log" class="list-unstyled mb-0 small font-monospace event-log-list" aria-live="polite">
-              <li class="text-secondary">[Control] Inicializando cliente de control IoT...</li>
-            </ul>
           </div>
         </section>
 
@@ -349,13 +292,11 @@
     </div>
   </main>
 
-  <!-- FOOTER OBLIGATORIO (Visible, adaptable y sin superponerse con los controles) -->
-  <footer class="bg-dark border-top border-secondary-subtle text-center py-3 mt-auto">
-    <div class="container">
-      <small class="text-light fw-medium">
-        Desarrollado por Jesús Sergio Quiroz Guzmán · 2026
-      </small>
-    </div>
+  <!-- FOOTER OBLIGATORIO COMPACTO -->
+  <footer class="app-footer bg-dark border-top border-secondary-subtle text-center">
+    <small class="text-light fw-medium">
+      Desarrollado por Jesús Sergio Quiroz Guzmán · 2026
+    </small>
   </footer>
 
   <!-- Bootstrap 5.3 JS Bundle -->
@@ -364,7 +305,7 @@
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"
   ></script>
-  <!-- Punto de entrada ES6 Module (ruta relativa para GitHub Pages) -->
-  <script type="module" src="./assets/js/app.js?v=3"></script>
+  <!-- Punto de entrada ES6 Module -->
+  <script type="module" src="./assets/js/app.js?v=4"></script>
 </body>
 </html>

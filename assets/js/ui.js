@@ -1,21 +1,15 @@
 /**
- * MÓDULO DE INTERFAZ DE USUARIO (js/ui.js)
- * Funciones puras y actualizadores seguros del DOM (sin inyección HTML de datos remotos)
- * para los 3 indicadores de conectividad, estados visuales de botones, joystick y DEMO.
+ * MÓDULO DE INTERFAZ DE USUARIO (assets/js/ui.js)
+ * Funciones puras y actualizadores seguros del DOM para los 3 indicadores
+ * de conectividad, estados visuales de botones, joystick y DEMO.
  */
 
 const STATUS_CLASSES = ["status-connected", "status-connecting", "status-disconnected"];
 
-/**
- * Etiquetas oficiales exigidas por la especificación para cada uno de los 3 indicadores:
- * - WebSocket WSS:         En línea | Conectando-Reconectando | Desconectado
- * - Servidor AWS (21 APIs): Disponible | Comprobando | No disponible
- * - Amazon RDS:            Disponible | Sin verificar | No disponible
- */
 const DEFAULT_SERVICE_LABELS = {
   ws: {
     connected: "En línea",
-    connecting: "Conectando-Reconectando",
+    connecting: "Conectando",
     disconnected: "Desconectado",
   },
   api: {
@@ -32,9 +26,9 @@ const DEFAULT_SERVICE_LABELS = {
 
 /**
  * Actualiza uno de los 3 indicadores visuales del Panel de Conectividad.
- * @param {'ws' | 'api' | 'rds'} service - Identificador del servicio.
- * @param {'connected' | 'connecting' | 'disconnected'} state - Estado visual.
- * @param {string} [customLabel] - Texto opcional si se desea sobreescribir la etiqueta oficial.
+ * @param {'ws' | 'api' | 'rds'} service
+ * @param {'connected' | 'connecting' | 'disconnected'} state
+ * @param {string} [customLabel]
  */
 export function updateServiceStatus(service, state, customLabel) {
   const dotEl = document.getElementById(`status-dot-${service}`);
@@ -71,10 +65,10 @@ export function updateServiceStatus(service, state, customLabel) {
     textEl.textContent = label;
     textEl.className =
       state === "connected"
-        ? "badge rounded-pill text-bg-success"
+        ? "badge rounded-pill text-bg-success status-badge"
         : state === "connecting"
-        ? "badge rounded-pill text-bg-warning"
-        : "badge rounded-pill text-bg-danger";
+        ? "badge rounded-pill text-bg-warning status-badge"
+        : "badge rounded-pill text-bg-danger status-badge";
   }
 }
 
@@ -100,7 +94,7 @@ export function setDispatchStateBadge(state, label) {
 }
 
 /**
- * Aplica los estados visuales requeridos a un botón de comando:
+ * Aplica los estados visuales a un botón de comando:
  * normal, presionado, enviando, aceptado, error y deshabilitado.
  * @param {number|string} cmdId
  * @param {'normal' | 'pressed' | 'sending' | 'accepted' | 'error' | 'disabled'} state
@@ -130,7 +124,6 @@ export function setActionButtonState(cmdId, state) {
 
 /**
  * Habilita o deshabilita todos los botones secundarios (por ejemplo, mientras corre una DEMO).
- * El botón prioritario DETENER nunca se deshabilita.
  * @param {boolean} disabled
  */
 export function setAllActionButtonsDisabled(disabled) {
@@ -141,13 +134,12 @@ export function setAllActionButtonsDisabled(disabled) {
 }
 
 /**
- * Muestra un mensaje temporal (alerta Bootstrap) de éxito, advertencia o error.
- * Usa `textContent` para prevenir inyección DOM (XSS).
- * @param {string} message - Mensaje a mostrar al usuario.
+ * Muestra un mensaje flotante temporal sin alterar el alto de la pantalla.
+ * @param {string} message
  * @param {'success' | 'danger' | 'warning' | 'info'} [type='info']
- * @param {number} [timeoutMs=4000]
+ * @param {number} [timeoutMs=2500]
  */
-export function showAlert(message, type = "info", timeoutMs = 4000) {
+export function showAlert(message, type = "info", timeoutMs = 2500) {
   const container = document.getElementById("alert-container");
   if (!container) return;
 
@@ -159,7 +151,7 @@ export function showAlert(message, type = "info", timeoutMs = 4000) {
   };
 
   const wrapper = document.createElement("div");
-  wrapper.className = `alert alert-${type} alert-dismissible fade show py-2 px-3 small shadow-sm mb-2 d-flex align-items-center justify-content-between`;
+  wrapper.className = `alert alert-${type} alert-dismissible fade show py-1 px-3 small shadow mb-1 d-flex align-items-center justify-content-between`;
   wrapper.setAttribute("role", "alert");
 
   const contentDiv = document.createElement("div");
@@ -179,12 +171,12 @@ export function showAlert(message, type = "info", timeoutMs = 4000) {
   closeBtn.type = "button";
   closeBtn.className = "btn-close btn-close-white p-2";
   closeBtn.setAttribute("data-bs-dismiss", "alert");
-  closeBtn.setAttribute("aria-label", "Cerrar alerta");
+  closeBtn.setAttribute("aria-label", "Cerrar");
 
   wrapper.appendChild(contentDiv);
   wrapper.appendChild(closeBtn);
 
-  while (container.children.length >= 2) {
+  while (container.children.length >= 1) {
     container.removeChild(container.firstChild);
   }
 
@@ -201,54 +193,23 @@ export function showAlert(message, type = "info", timeoutMs = 4000) {
 }
 
 /**
- * Registra una línea en la Bitácora de Despacho de Comandos con marca de tiempo.
- * @param {string} source - Origen ('CONTROL', 'DEMO', 'WSS', 'API', 'RDS').
- * @param {string} detail - Descripción segura del evento.
- * @param {'info' | 'success' | 'warning' | 'danger'} [level='info']
+ * Función de compatibilidad para registro interno (la bitácora visual fue removida para limpiar la vista del usuario).
  */
-export function appendEventLog(source, detail, level = "info") {
-  const logList = document.getElementById("event-log");
-  if (!logList) return;
-
-  const timeStr = new Date().toLocaleTimeString("es-MX", { hour12: false });
-  const colorMap = {
-    info: "text-light",
-    success: "text-success",
-    warning: "text-warning",
-    danger: "text-danger",
-  };
-
-  const li = document.createElement("li");
-  li.className = colorMap[level] || "text-light";
-  li.textContent = `[${timeStr}] [${source}] ${detail}`;
-
-  logList.prepend(li);
-
-  while (logList.children.length > 35) {
-    logList.removeChild(logList.lastChild);
-  }
+export function appendEventLog() {
+  // No-op en vista de usuario final
 }
 
-/**
- * Limpia la Bitácora de Despacho.
- */
 export function clearEventLog() {
-  const logList = document.getElementById("event-log");
-  if (!logList) return;
-  logList.innerHTML = "";
-  const li = document.createElement("li");
-  li.className = "text-secondary";
-  li.textContent = "[Control] Bitácora limpiada.";
-  logList.appendChild(li);
+  // No-op en vista de usuario final
 }
 
 /**
  * Actualiza los indicadores visuales de dirección del Joystick y el badge de comando activo.
  * @param {object} telemetry
- * @param {number} telemetry.angle - Ángulo en grados (0 - 360).
- * @param {number} telemetry.force - Desplazamiento en porcentaje (0 - 100).
- * @param {string} telemetry.direction - Dirección o nombre del comando.
- * @param {string} [telemetry.commandLabel] - Etiqueta para el badge superior.
+ * @param {number} telemetry.angle
+ * @param {number} telemetry.force
+ * @param {string} telemetry.direction
+ * @param {string} [telemetry.commandLabel]
  */
 export function updateJoystickTelemetry({ angle, force, direction, commandLabel }) {
   const angleEl = document.getElementById("joystick-angle");
@@ -291,8 +252,7 @@ export function updateDemoStatusBadge(state, text) {
 }
 
 /**
- * Llena el selector `<select id="select-demo">` con las secuencias DEMO de `/api/vehiculos/1/demos`.
- * Usa `textContent` para tratar el JSON remoto como no confiable.
+ * Llena el selector `<select id="select-demo">` con las secuencias DEMO disponibles.
  * @param {Array<object>} demos
  */
 export function renderDemoOptions(demos = []) {
@@ -305,12 +265,10 @@ export function renderDemoOptions(demos = []) {
     const id = Number(demo.id_demo ?? demo.id);
     if (!Number.isInteger(id) || id <= 0) return;
 
-    const nombre = String(demo.nombre ?? `DEMO #${id}`);
-    const desc = demo.descripcion ? ` (${String(demo.descripcion)})` : "";
-
+    const nombre = String(demo.nombre ?? `Demo ${id}`);
     const option = document.createElement("option");
     option.value = String(id);
-    option.textContent = `${nombre}${desc}`;
+    option.textContent = nombre;
     if (index === 0) option.selected = true;
     selectEl.appendChild(option);
   });
@@ -318,8 +276,7 @@ export function renderDemoOptions(demos = []) {
 
 /**
  * Renderiza dinámicamente los botones de controles secundarios a partir del catálogo real
- * devuelto por `GET /api/vehiculos/1/comandos` (`3, 4, 7, 8, 9, 10, 11`), sin usar `innerHTML`
- * con texto remoto para prevenir inyección DOM.
+ * sin mostrar IDs internos de programación al usuario final.
  * @param {Array<object>} commands
  * @param {function(number, string): void} onCommandClick
  */
@@ -327,7 +284,6 @@ export function renderActionButtons(commands = [], onCommandClick) {
   const container = document.getElementById("commands-container");
   if (!container || !Array.isArray(commands) || commands.length === 0) return;
 
-  // Excluimos los IDs controlados por el Joystick (1, 2, 5, 6), Demo (12) y Detener (13)
   const excludedIds = new Set([1, 2, 5, 6, 12, 13]);
   const extraCommands = commands.filter(
     (c) => Number(c.activo ?? 1) === 1 && !excludedIds.has(Number(c.id_comando))
@@ -340,35 +296,34 @@ export function renderActionButtons(commands = [], onCommandClick) {
   const getButtonStyleAndIcon = (name) => {
     const upper = name.toUpperCase();
     if (upper.includes("CABINA IZQUIERDA")) {
-      return { btnClass: "btn-outline-info", icon: "bi-arrow-counterclockwise", colClass: "col-6" };
+      return { btnClass: "btn-outline-info", icon: "bi-arrow-counterclockwise", colClass: "col-6 p-1" };
     }
     if (upper.includes("CABINA DERECHA")) {
-      return { btnClass: "btn-outline-info", icon: "bi-arrow-clockwise", colClass: "col-6" };
+      return { btnClass: "btn-outline-info", icon: "bi-arrow-clockwise", colClass: "col-6 p-1" };
     }
     if (upper.includes("BAJAR GARRA")) {
-      return { btnClass: "btn-outline-warning", icon: "bi-arrow-down-circle-fill", colClass: "col-6" };
+      return { btnClass: "btn-outline-warning", icon: "bi-arrow-down-circle-fill", colClass: "col-6 p-1" };
     }
     if (upper.includes("SUBIR GARRA")) {
-      return { btnClass: "btn-outline-warning", icon: "bi-arrow-up-circle-fill", colClass: "col-6" };
+      return { btnClass: "btn-outline-warning", icon: "bi-arrow-up-circle-fill", colClass: "col-6 p-1" };
     }
     if (upper.includes("LUZ")) {
-      return { btnClass: "btn-outline-light", icon: "bi-lightbulb-fill text-warning", colClass: "col-4" };
+      return { btnClass: "btn-outline-light", icon: "bi-lightbulb-fill text-warning", colClass: "col-4 p-1" };
     }
     if (upper.includes("SONIDO")) {
-      return { btnClass: "btn-outline-light", icon: "bi-volume-up-fill text-info", colClass: "col-4" };
+      return { btnClass: "btn-outline-light", icon: "bi-volume-up-fill text-info", colClass: "col-4 p-1" };
     }
     if (upper.includes("VELOCIDAD")) {
-      return { btnClass: "btn-outline-light", icon: "bi-speedometer2 text-success", colClass: "col-4" };
+      return { btnClass: "btn-outline-light", icon: "bi-speedometer2 text-success", colClass: "col-4 p-1" };
     }
-    return { btnClass: "btn-outline-info", icon: "bi-lightning-charge-fill", colClass: "col-6" };
+    return { btnClass: "btn-outline-info", icon: "bi-lightning-charge-fill", colClass: "col-6 p-1" };
   };
 
   extraCommands.forEach((cmd) => {
     const cmdId = Number(cmd.id_comando);
     if (!Number.isInteger(cmdId) || cmdId <= 0) return;
 
-    const cmdName = String(cmd.nombre || `Comando #${cmdId}`);
-    const cmdDesc = String(cmd.descripcion || cmdName);
+    const cmdName = String(cmd.nombre || "Acción");
     const { btnClass, icon, colClass } = getButtonStyleAndIcon(cmdName);
 
     const col = document.createElement("div");
@@ -379,7 +334,6 @@ export function renderActionButtons(commands = [], onCommandClick) {
     btn.className = `btn ${btnClass} w-100 btn-action-cmd text-truncate`;
     btn.dataset.cmdId = String(cmdId);
     btn.dataset.cmdName = cmdName;
-    btn.title = `${cmdDesc} (ID: ${cmdId})`;
 
     const iconEl = document.createElement("i");
     iconEl.className = `bi ${icon} me-1`;

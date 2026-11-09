@@ -1,10 +1,10 @@
 /* ==========================================================================
-   ESTILOS GENERALES, ACCESIBILIDAD Y MOBILE FIRST - CONTROL VEHÍCULO IoT
+   DISEÑO VIEWPORT COMPLETO SIN SCROLL (100dvh) - MOBILE FIRST & DESKTOP
    ========================================================================== */
 
 :root {
-  --joystick-size: 230px;
-  --knob-size: 76px;
+  --joystick-size: clamp(132px, 23dvh, 185px);
+  --knob-size: clamp(48px, 8.2dvh, 64px);
   --accent-cyan: #0dcaf0;
   --accent-cyan-glow: rgba(13, 202, 240, 0.45);
   --status-ok: #198754;
@@ -12,11 +12,18 @@
   --status-err: #dc3545;
 }
 
-/* Ajuste responsivo para pantallas medianas y grandes */
-@media (min-width: 576px) {
+@media (min-width: 768px) {
   :root {
-    --joystick-size: 260px;
-    --knob-size: 84px;
+    --joystick-size: clamp(180px, 40dvh, 250px);
+    --knob-size: clamp(64px, 13dvh, 84px);
+  }
+}
+
+/* Ajuste para celular en horizontal (landscape) */
+@media (orientation: landscape) and (max-height: 540px) {
+  :root {
+    --joystick-size: clamp(115px, 38dvh, 160px);
+    --knob-size: clamp(42px, 13dvh, 56px);
   }
 }
 
@@ -25,9 +32,17 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html,
+body.app-viewport {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  overflow-x: hidden;
   user-select: none;
 }
 
@@ -35,20 +50,83 @@ body {
   letter-spacing: 0.04em;
 }
 
-/* Foco visible accesible para navegación por teclado */
 :focus-visible {
-  outline: 3px solid var(--accent-cyan) !important;
+  outline: 2px solid var(--accent-cyan) !important;
   outline-offset: 2px;
 }
 
 /* ==========================================================================
-   PANEL DE CONECTIVIDAD (3 Indicadores: WebSocket WSS, Servidor AWS, Amazon RDS)
+   ESTRUCTURA PRINCIPAL (Header, Main sin scroll y Footer fijo abajo)
    ========================================================================== */
+
+.app-header {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  overflow: hidden;
+  max-width: 1200px;
+}
+
+.app-footer {
+  flex: 0 0 auto;
+  padding: 0.28rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+/* ==========================================================================
+   BARRA DE CONECTIVIDAD (3 Indicadores)
+   ========================================================================== */
+
+.connectivity-bar {
+  flex: 0 0 auto;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+@media (min-width: 576px) {
+  .status-item {
+    flex-direction: row;
+    gap: 6px;
+  }
+}
+
+.status-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-icon {
+  font-size: 0.8rem;
+}
+
+.status-badge {
+  font-size: 0.65rem;
+  padding: 0.2em 0.55em;
+}
 
 .status-dot {
   display: inline-block;
-  width: 12px;
-  height: 12px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
@@ -56,18 +134,18 @@ body {
 
 .status-connected {
   background-color: var(--status-ok);
-  box-shadow: 0 0 8px rgba(25, 135, 84, 0.9);
+  box-shadow: 0 0 7px rgba(25, 135, 84, 0.9);
 }
 
 .status-connecting {
   background-color: var(--status-warn);
-  box-shadow: 0 0 8px rgba(255, 193, 7, 0.9);
+  box-shadow: 0 0 7px rgba(255, 193, 7, 0.9);
   animation: pulse-status 1.2s infinite ease-in-out;
 }
 
 .status-disconnected {
   background-color: var(--status-err);
-  box-shadow: 0 0 8px rgba(220, 53, 69, 0.8);
+  box-shadow: 0 0 7px rgba(220, 53, 69, 0.8);
 }
 
 @keyframes pulse-status {
@@ -82,14 +160,59 @@ body {
 }
 
 /* ==========================================================================
-   JOYSTICK CIRCULAR (Pointer Events: Touch, Mouse y Teclado)
+   GRILLA DE CONTROL ADAPTATIVA (Sin desbordamiento en Móvil ni Escritorio)
+   ========================================================================== */
+
+.control-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 0.35rem;
+}
+
+.panel-actions-wrapper {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1.3fr) minmax(0, 0.85fr);
+  gap: 0.35rem;
+}
+
+/* En pantallas medianas/grandes o móvil horizontal: 2 columnas lado a lado */
+@media (min-width: 768px), (orientation: landscape) and (max-height: 540px) {
+  .control-grid {
+    grid-template-columns: 1.15fr 1fr;
+    grid-template-rows: 1fr;
+    gap: 0.6rem;
+  }
+
+  .panel-actions-wrapper {
+    grid-template-rows: 1.35fr 0.85fr;
+    gap: 0.6rem;
+  }
+}
+
+.panel-joystick,
+.panel-controls,
+.panel-demo {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   JOYSTICK CIRCULAR
    ========================================================================== */
 
 .joystick-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem;
 }
 
 .joystick-base {
@@ -106,14 +229,13 @@ body {
   );
   border: 3px solid rgba(255, 255, 255, 0.16);
   box-shadow:
-    inset 0 6px 18px rgba(0, 0, 0, 0.75),
-    0 4px 20px rgba(0, 0, 0, 0.45);
+    inset 0 5px 15px rgba(0, 0, 0, 0.75),
+    0 3px 14px rgba(0, 0, 0, 0.45);
   touch-action: none;
   user-select: none;
   cursor: pointer;
 }
 
-/* Anillo de zona neutral (deadzone) */
 .joystick-base::before {
   content: "";
   position: absolute;
@@ -123,7 +245,6 @@ body {
   pointer-events: none;
 }
 
-/* Ejes cruzados de referencia */
 .joystick-base::after {
   content: "";
   position: absolute;
@@ -138,44 +259,42 @@ body {
 .joystick-base.is-active {
   border-color: var(--accent-cyan);
   box-shadow:
-    inset 0 6px 18px rgba(0, 0, 0, 0.8),
-    0 0 22px var(--accent-cyan-glow);
+    inset 0 5px 15px rgba(0, 0, 0, 0.8),
+    0 0 18px var(--accent-cyan-glow);
 }
 
-/* Guías cardinales */
 .joystick-guide {
   position: absolute;
   color: rgba(255, 255, 255, 0.32);
-  font-size: 1rem;
+  font-size: 0.85rem;
   pointer-events: none;
   line-height: 1;
 }
 
 .guide-up {
-  top: 8px;
+  top: 5px;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .guide-down {
-  bottom: 8px;
+  bottom: 5px;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .guide-left {
-  left: 8px;
+  left: 5px;
   top: 50%;
   transform: translateY(-50%);
 }
 
 .guide-right {
-  right: 8px;
+  right: 5px;
   top: 50%;
   transform: translateY(-50%);
 }
 
-/* Perilla / Knob circular */
 .joystick-knob {
   position: absolute;
   top: 50%;
@@ -191,15 +310,15 @@ body {
     #0dcaf0 45%,
     #087990 100%
   );
-  border: 3px solid rgba(255, 255, 255, 0.7);
+  border: 2.5px solid rgba(255, 255, 255, 0.72);
   box-shadow:
-    0 6px 16px rgba(0, 0, 0, 0.65),
-    inset 0 2px 5px rgba(255, 255, 255, 0.55);
+    0 5px 14px rgba(0, 0, 0, 0.65),
+    inset 0 2px 4px rgba(255, 255, 255, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #051b24;
-  font-size: 1.45rem;
+  font-size: 1.2rem;
   touch-action: none;
   user-select: none;
   cursor: grab;
@@ -212,20 +331,32 @@ body {
   cursor: grabbing;
   transition: box-shadow 0.15s ease;
   box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.8),
-    0 0 18px var(--accent-cyan-glow),
-    inset 0 2px 6px rgba(255, 255, 255, 0.7);
+    0 8px 20px rgba(0, 0, 0, 0.8),
+    0 0 16px var(--accent-cyan-glow),
+    inset 0 2px 5px rgba(255, 255, 255, 0.7);
+}
+
+.telemetry-row {
+  font-size: 0.73rem;
 }
 
 /* ==========================================================================
-   BOTONES Y ESTADOS VISUALES (Normal, Presionado, Enviando, Aceptado, Error, Deshabilitado)
+   BOTONES Y ESTADOS VISUALES
    ========================================================================== */
 
 #btn-emergency-stop {
-  min-height: 54px;
-  letter-spacing: 0.05em;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
   border-width: 2px;
   transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+@media (min-width: 768px) {
+  #btn-emergency-stop {
+    padding: 0.65rem 1rem;
+    font-size: 1rem;
+  }
 }
 
 #btn-emergency-stop:active {
@@ -233,58 +364,69 @@ body {
 }
 
 .btn-action-cmd {
-  min-height: 44px; /* Área táctil accesible mínima de 44px */
-  font-size: 0.84rem;
-  padding: 0.5rem 0.45rem;
+  min-height: 34px;
+  font-size: 0.76rem;
+  padding: 0.3rem 0.35rem;
   transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-/* Estado 1: Presionado */
+@media (min-width: 768px) {
+  .btn-action-cmd {
+    min-height: 42px;
+    font-size: 0.84rem;
+    padding: 0.45rem 0.5rem;
+  }
+}
+
+.demo-btn {
+  min-height: 34px;
+}
+
+@media (min-width: 768px) {
+  .demo-btn {
+    min-height: 40px;
+    font-size: 0.88rem;
+  }
+}
+
+/* Estados visuales de los botones */
 .btn-action-cmd:active,
 .btn-action-cmd.btn-state-pressed {
   transform: scale(0.96);
 }
 
-/* Estado 2: Enviando */
 .btn-action-cmd.btn-state-sending {
   border-color: var(--status-warn) !important;
   box-shadow: 0 0 10px rgba(255, 193, 7, 0.45);
   opacity: 0.9;
 }
 
-/* Estado 3: Aceptado por API */
 .btn-action-cmd.btn-state-accepted {
   border-color: var(--status-ok) !important;
   box-shadow: 0 0 12px rgba(25, 135, 84, 0.65);
 }
 
-/* Estado 4: Error */
 .btn-action-cmd.btn-state-error {
   border-color: var(--status-err) !important;
   box-shadow: 0 0 12px rgba(220, 53, 69, 0.65);
 }
 
-/* Estado 5: Deshabilitado */
 .btn-action-cmd:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-/* Bitácora de despacho */
-.event-log-list {
-  max-height: 135px;
-  overflow-y: auto;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  scrollbar-width: thin;
+/* Alertas flotantes para no desplazar la interfaz */
+.floating-alerts {
+  position: fixed;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 460px);
+  z-index: 1050;
+  pointer-events: none;
 }
 
-.event-log-list li {
-  padding: 2px 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  word-break: break-word;
-}
-
-.event-log-list li:last-child {
-  border-bottom: none;
+.floating-alerts .alert {
+  pointer-events: auto;
 }

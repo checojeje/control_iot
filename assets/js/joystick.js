@@ -1,16 +1,12 @@
 /**
- * MÓDULO DE CONTROL JOYSTICK (js/joystick.js)
+ * MÓDULO DE CONTROL JOYSTICK (assets/js/joystick.js)
  * Interacciones reales con Pointer Events (touch y mouse) + soporte accesible por teclado.
- * Mapea direcciones únicamente a los comandos válidos (1, 2, 5, 6), con zona neutral y retorno
- * al centro disparando inmediatamente Detener (ID: 13). Gestiona cambios rápidos de dirección,
- * pérdida de foco/puntero (`lostpointercapture`, `blur`, `visibilitychange`) y evita POST repetitivos.
+ * Mapea direcciones a los comandos válidos, con zona neutral y retorno automático al centro
+ * disparando Detener.
  */
 
-import { updateJoystickTelemetry } from "./ui.js?v=2";
+import { updateJoystickTelemetry } from "./ui.js?v=4";
 
-/**
- * Catálogo exacto de los 13 comandos del Vehículo #1 en AWS (`api-iot-sergio.duckdns.org`):
- */
 export const COMMAND_IDS = {
   AVANZAR: 1,
   RETROCEDER: 2,
@@ -27,9 +23,6 @@ export const COMMAND_IDS = {
   DETENER: 13,
 };
 
-/**
- * Diccionario de etiquetas legibles por `id_comando`.
- */
 export const COMMAND_LABELS = {
   1: "Avanzar",
   2: "Retroceder",
@@ -69,12 +62,11 @@ export function getCommandNameById(comandoId) {
   for (const [key, id] of Object.entries(COMMAND_IDS)) {
     if (id === numId) return key;
   }
-  return `Comando #${numId}`;
+  return "Movimiento";
 }
 
 /**
- * Sincroniza dinámicamente `COMMAND_IDS` y `COMMAND_LABELS` con la respuesta de
- * `GET https://api-iot-sergio.duckdns.org/api/vehiculos/1/comandos`.
+ * Sincroniza dinámicamente `COMMAND_IDS` y `COMMAND_LABELS` con el catálogo de la API.
  * @param {Array<object>} catalog
  */
 export function syncCommandIdsFromCatalog(catalog = []) {
@@ -99,11 +91,11 @@ export function syncCommandIdsFromCatalog(catalog = []) {
 export class CircularJoystick {
   /**
    * @param {object} config
-   * @param {HTMLElement} config.baseElement - Contenedor circular `#joystick-zone`.
-   * @param {HTMLElement} config.knobElement - Perilla arrastrable `#joystick-knob`.
-   * @param {function(number, string): void} config.onCommand - Callback `(comandoId, commandName)`.
-   * @param {number} [config.rateLimitMs=180] - Ventana mínima de anti-rebote en ms.
-   * @param {number} [config.deadzoneRatio=0.22] - Zona neutral central (0.0 a 1.0) que equivale a Detener (ID: 13).
+   * @param {HTMLElement} config.baseElement
+   * @param {HTMLElement} config.knobElement
+   * @param {function(number, string): void} config.onCommand
+   * @param {number} [config.rateLimitMs=180]
+   * @param {number} [config.deadzoneRatio=0.22]
    */
   constructor({
     baseElement,
@@ -131,7 +123,6 @@ export class CircularJoystick {
   initEvents() {
     if (!this.baseEl || !this.knobEl) return;
 
-    // Eventos Pointer (unifica Mouse y Touch)
     this.baseEl.addEventListener("pointerdown", (e) => this.handlePointerDown(e));
     this.baseEl.addEventListener("pointermove", (e) => this.handlePointerMove(e));
     this.baseEl.addEventListener("pointerup", (e) => this.handlePointerUp(e));
@@ -142,7 +133,6 @@ export class CircularJoystick {
       }
     });
 
-    // Seguridad ante pérdida de foco de la ventana o cambio de pestaña en móvil/escritorio
     window.addEventListener("blur", () => {
       if (this.isDragging || this.activeKeyDirection) {
         this.activeKeyDirection = null;
@@ -157,15 +147,10 @@ export class CircularJoystick {
       }
     });
 
-    // Accesibilidad por teclado cuando el usuario enfoca el joystick
     this.baseEl.addEventListener("keydown", (e) => this.handleKeyDown(e));
     this.baseEl.addEventListener("keyup", (e) => this.handleKeyUp(e));
   }
 
-  /**
-   * Permite bloquear el joystick mientras una DEMO está en ejecución.
-   * @param {boolean} disabled
-   */
   setDisabled(disabled) {
     this.isDisabled = Boolean(disabled);
     if (this.isDisabled && (this.isDragging || this.activeKeyDirection)) {
@@ -174,9 +159,6 @@ export class CircularJoystick {
     }
   }
 
-  /**
-   * @param {PointerEvent} event
-   */
   handlePointerDown(event) {
     if (this.isDisabled) return;
     event.preventDefault();
@@ -187,7 +169,7 @@ export class CircularJoystick {
       try {
         this.baseEl.setPointerCapture(event.pointerId);
       } catch {
-        // Ignorar si el navegador no soporta captura en este evento
+        // Ignorar si no aplica
       }
     }
 
@@ -197,9 +179,6 @@ export class CircularJoystick {
     this.processPointerPosition(event.clientX, event.clientY);
   }
 
-  /**
-   * @param {PointerEvent} event
-   */
   handlePointerMove(event) {
     if (!this.isDragging || event.pointerId !== this.activePointerId || this.isDisabled) {
       return;
@@ -208,10 +187,6 @@ export class CircularJoystick {
     this.processPointerPosition(event.clientX, event.clientY);
   }
 
-  /**
-   * Al soltar o cancelar el gesto, retorna al centro y solicita DETENER (ID: 13).
-   * @param {PointerEvent} event
-   */
   handlePointerUp(event) {
     if (!this.isDragging || (this.activePointerId !== null && event.pointerId !== this.activePointerId)) {
       return;
@@ -229,18 +204,14 @@ export class CircularJoystick {
     this.resetToCenter(true);
   }
 
-  /**
-   * Navegación accesible por teclado (Flechas direccionales y Espacio/Escape para Detener).
-   * @param {KeyboardEvent} event
-   */
   handleKeyDown(event) {
     if (this.isDisabled) return;
 
     const keyMap = {
-      ArrowUp: { key: "AVANZAR", x: 0, y: -60, angle: 90 },
-      ArrowDown: { key: "RETROCEDER", x: 0, y: 60, angle: 270 },
-      ArrowLeft: { key: "GIRAR_IZQUIERDA", x: -60, y: 0, angle: 180 },
-      ArrowRight: { key: "GIRAR_DERECHA", x: 60, y: 0, angle: 0 },
+      ArrowUp: { key: "AVANZAR", x: 0, y: -45, angle: 90 },
+      ArrowDown: { key: "RETROCEDER", x: 0, y: 45, angle: 270 },
+      ArrowLeft: { key: "GIRAR_IZQUIERDA", x: -45, y: 0, angle: 180 },
+      ArrowRight: { key: "GIRAR_DERECHA", x: 45, y: 0, angle: 0 },
     };
 
     if (event.key === " " || event.key === "Escape") {
@@ -267,16 +238,12 @@ export class CircularJoystick {
       angle: mapped.angle,
       force: 100,
       direction: label,
-      commandLabel: `${label} (ID: ${cmdId})`,
+      commandLabel: label,
     });
 
     this.dispatchCommandTransition(mapped.key, true);
   }
 
-  /**
-   * Al soltar la tecla direccional, retorna a neutral y solicita DETENER (ID: 13).
-   * @param {KeyboardEvent} event
-   */
   handleKeyUp(event) {
     if (!this.activeKeyDirection) return;
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
@@ -286,12 +253,6 @@ export class CircularJoystick {
     }
   }
 
-  /**
-   * Calcula coordenadas relativas al centro, restringe la perilla al círculo
-   * y evalúa transiciones de dirección sin generar POST repetitivos por píxel/fotograma.
-   * @param {number} clientX
-   * @param {number} clientY
-   */
   processPointerPosition(clientX, clientY) {
     const rect = this.baseEl.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
@@ -303,7 +264,6 @@ export class CircularJoystick {
     const deltaY = clientY - centerY;
     const distance = Math.hypot(deltaX, deltaY);
 
-    // Ángulo matemático (0° = Derecha, 90° = Arriba/Avanzar, 180° = Izquierda, 270° = Abajo/Retroceder)
     const angleRad = Math.atan2(-deltaY, deltaX);
     let angleDeg = (angleRad * 180) / Math.PI;
     if (angleDeg < 0) angleDeg += 360;
@@ -328,24 +288,13 @@ export class CircularJoystick {
     updateJoystickTelemetry({
       angle: ratio < this.deadzoneRatio ? 0 : angleDeg,
       force: forcePercent,
-      direction: commandKey === "DETENER" ? `Neutral (${label})` : label,
-      commandLabel: `${label} (ID: ${commandId})`,
+      direction: label,
+      commandLabel: label,
     });
 
     this.dispatchCommandTransition(commandKey, commandKey === "DETENER");
   }
 
-  /**
-   * Mapea el ángulo (0°-360°) únicamente a los comandos direccionales válidos:
-   * - 45° a 135°  -> AVANZAR         (id_comando: 1)
-   * - 135° a 225° -> GIRAR_IZQUIERDA (id_comando: 6)
-   * - 225° a 315° -> RETROCEDER      (id_comando: 2)
-   * - 315° a 45°  -> GIRAR_DERECHA   (id_comando: 5)
-   * - Zona neutral -> DETENER        (id_comando: 13)
-   * @param {number} angleDeg
-   * @param {number} ratio
-   * @returns {'DETENER' | 'AVANZAR' | 'GIRAR_IZQUIERDA' | 'RETROCEDER' | 'GIRAR_DERECHA'}
-   */
   resolveDirectionCommand(angleDeg, ratio) {
     if (ratio < this.deadzoneRatio) {
       return "DETENER";
@@ -363,20 +312,11 @@ export class CircularJoystick {
     return "GIRAR_DERECHA";
   }
 
-  /**
-   * Envía únicamente en cada transición de dirección (`commandKey !== this.lastSentCommandKey`),
-   * evitando POST repetitivos por cada píxel o fotograma mientras el usuario mantiene la misma dirección.
-   * Si el comando es DETENER (`forceImmediate = true`), tiene prioridad absoluta.
-   * @param {string} commandKey
-   * @param {boolean} [forceImmediate=false]
-   */
   dispatchCommandTransition(commandKey, forceImmediate = false) {
-    // Si seguimos en la misma dirección que ya fue enviada, no repetimos el POST
     if (commandKey === this.lastSentCommandKey && !forceImmediate) {
       return;
     }
 
-    // Si ya estábamos en DETENER y nos piden DETENER desde la zona muerta sin haber salido, evitamos duplicado
     if (commandKey === "DETENER" && this.lastSentCommandKey === "DETENER" && this.isDragging) {
       return;
     }
@@ -397,10 +337,6 @@ export class CircularJoystick {
     }
   }
 
-  /**
-   * Retorna la perilla al centro exacto y dispara inmediatamente `Detener` (ID: 13).
-   * @param {boolean} [triggerStopCommand=true]
-   */
   resetToCenter(triggerStopCommand = true) {
     this.isDragging = false;
     this.activePointerId = null;
@@ -415,8 +351,8 @@ export class CircularJoystick {
     updateJoystickTelemetry({
       angle: 0,
       force: 0,
-      direction: `Neutral (${stopLabel})`,
-      commandLabel: `${stopLabel} (ID: ${stopId})`,
+      direction: stopLabel,
+      commandLabel: stopLabel,
     });
 
     if (triggerStopCommand) {
