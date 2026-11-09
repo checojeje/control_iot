@@ -1,315 +1,430 @@
 /**
- * ORQUESTADOR PRINCIPAL DE LA APLICACIÓN (assets/js/app.js)
- * Centraliza la validación y el despacho único de comandos para Joystick, Botones y DETENER,
- * gestiona los estados visuales, evita DEMO simultáneas y actualiza los 3 indicadores de conectividad.
+ * @file app.js
+ * @description Orquestador principal de la aplicación de Control IoT (Joystick, Botones, DEMO, REST y WSS)
  */
-
-import {
-  updateServiceStatus,
-  setDispatchStateBadge,
-  setActionButtonState,
-  setAllActionButtonsDisabled,
-  showAlert,
-  updateJoystickTelemetry,
-  updateDemoStatusBadge,
-  renderDemoOptions,
-  renderActionButtons,
-} from "./ui.js?v=4";
 
 import {
   checkApiHealth,
   checkRdsHealth,
-  fetchCommands,
-  sendMovement,
+  fetchVehicleInfo,
+  fetchVehicleCommands,
   fetchDemos,
-  startDemo,
-  cancelDemo,
-} from "./api.js?v=4";
+  fetchDemoMovements,
+  sendMovement,
+  registerDemoExecution,
+} from "./api.js?v=5";
 
-import { VehicleWebSocketClient } from "./ws.js?v=4";
 import {
-  CircularJoystick,
-  COMMAND_IDS,
-  isValidCommandId,
-  getCommandNameById,
-  syncCommandIdsFromCatalog,
-} from "./joystick.js?v=4";
+  setIndicatorState,
+  showErrorBanner,
+  hideErrorBanner,
+  updateActiveCommandBadge,
+  renderActionButtons,
+  populateDemoSelect,
+  setDemoProgressUI,
+  setControlsDisabled,
+  highlightActiveButton,
+} from "./ui.js?v=5";
 
-let wsClient = null;
-let joystickController = null;
-let isDemoRunning = false;
-let isSendingCommand = false;
-const HEALTH_POLL_INTERVAL_MS = 20000;
+import { VirtualJoystick, JOYSTICK_DIRECTIONS } from "./joystick.js?v=5";
+import { VehicleWebSocket } from "./ws.js?v=5";
 
-async function verifyBackendAndDatabaseHealth() {
-  updateServiceStatus("api", "connecting", "Comprobando");
-  updateServiceStatus("rds", "connecting", "Sin verificar");
+const state = {
+  commands: [],
+  stopCommandId: 13,
+  isDemoRunning: false,
+  demoCancelRequested: false,
+  demoSleepTimer: null,
+  joystick: null,
+  wsClient: null,
+};
 
-  const apiResult = await checkApiHealth();
+const FALLBACK_CATALOG = [
+  { id: 1, codigo: "AVANZAR", nombre: "Avanzar", activo: true },
+  { id: 2, codigo: "RETROCEDER", nombre: "Retroceder", activo: true },
+  { id: 3, codigo: "CABINA_IZQ", nombre: "Cabina Izquierda", activo: true },
+  { id: 4, codigo: "CABINA_DER", nombre: "Cabina Derecha", activo: true },
+  { id: 5, codigo: "GIRAR_DER", nombre: "Girar Derecha", activo: true },
+  { id: 6, codigo: "GIRAR_IZQ", nombre: "Girar Izquierda", activo: true },
+  { id: 7, codigo: "BAJAR_GARRA", nombre: "Bajar Garra", activo: true },
+  { id: 8, codigo: "SUBIR_GARRA", nombre: "Subir Garra", activo: true },
+  { id: 9, codigo: "LUZ", nombre: "Luz", activo: true },
+  { id: 10, codigo: "SONIDO", nombre: "Sonido", activo: true },
+  { id: 11, codigo: "VELOCIDAD", nombre: "Velocidad", activo: true },
+  { id: 12, codigo: "DEMO", nombre: "Demo", activo: true },
+  { id: 13, codigo: "DETENER", nombre: "Detener", activo: true },
+];
 
-  if (apiResult.ok) {
-    updateServiceStatus("api", "connected", "Disponible");
-  } else {
-    updateServiceStatus("api", "disconnected", "No disponible");
-    updateServiceStatus("rds", "connecting", "Sin verificar");
-    return false;
-  }
+/**
+ * Inicialización al cargar el DOM
+ */
+document.addEventListener("DOMContentLoaded", async () => {
+  initUIEventListeners();
+  initJoystickControl();
+  initWebSocketChannel();
+  initMobileLifecycleListeners();
 
-  const rdsResult = await checkRdsHealth();
+  // Renderizar catálogo base inmediatamente para respuesta instantánea
+  applyCommandCatalog(FALLBACK_CATALOG);
 
-  if (rdsResult.ok) {
-    updateServiceStatus("rds", "connected", "Disponible");
-    const estado = rdsResult.data;
-    if (estado) {
-      if (estado.vehiculo) {
-        const titleEl = document.getElementById("vehicle-title");
-        if (titleEl) titleEl.textContent = String(estado.vehiculo);
+  await verifyBackendAndDatabaseHealth();
+  await loadCatalogAndDemos();
+});
+
+/**
+ * Reconecta automáticamente en teléfonos móviles al volver a abrir la pestaña o recuperar red
+ */
+function initMobileLifecycleListeners() {
+  window.addEventListener("online", () => {
+    hideErrorBanner();
+    state.wsClient?.reconnectNow();
+    verifyBackendAndDatabaseHealth();
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      if (!state.wsClient?.socket || state.wsClient.socket.readyState !== WebSocket.OPEN) {
+        state.wsClient?.connect();
       }
-      if (
-        estado.id_comando &&
-        !isDemoRunning &&
-        (!joystickController || !joystickController.isDragging)
-      ) {
-        const cmdId = Number(estado.id_comando);
-        const cmdName = String(estado.comando || getCommandNameById(cmdId));
-        const isStopped = cmdId === COMMAND_IDS.DETENER;
-        updateJoystickTelemetry({
-          angle: 0,
-          force: isStopped ? 0 : 100,
-          direction: cmdName,
-          commandLabel: cmdName,
-        });
-      }
+      verifyBackendAndDatabaseHealth();
     }
-  } else {
-    updateServiceStatus("rds", "disconnected", "No disponible");
-  }
-
-  return apiResult.ok && rdsResult.ok;
+  });
 }
 
-async function loadInitialCatalogs() {
-  try {
-    const commands = await fetchCommands();
-    if (commands.length > 0) {
-      syncCommandIdsFromCatalog(commands);
-      renderActionButtons(commands, (cmdId, cmdName) => {
-        executeMovementCommand(cmdId, cmdName, "WEB_BOTON");
-      });
+/**
+ * Registra eventos de botones fijos (DETENER, DEMO, Reintentar)
+ */
+function initUIEventListeners() {
+  const btnCloseError = document.getElementById("btn-close-error");
+  if (btnCloseError) {
+    btnCloseError.addEventListener("click", () => hideErrorBanner());
+  }
+
+  const btnRefresh = document.getElementById("btn-refresh-health");
+  if (btnRefresh) {
+    btnRefresh.addEventListener("click", async () => {
+      hideErrorBanner();
+      state.wsClient?.reconnectNow();
+      await verifyBackendAndDatabaseHealth();
+      await loadCatalogAndDemos();
+    });
+  }
+
+  const btnPriorityStop = document.getElementById("btn-priority-stop");
+  if (btnPriorityStop) {
+    btnPriorityStop.addEventListener("click", () => {
+      executePriorityStop("BOTÓN DETENER");
+    });
+  }
+
+  const btnStartDemo = document.getElementById("btn-start-demo");
+  if (btnStartDemo) {
+    btnStartDemo.addEventListener("click", () => {
+      const selectEl = document.getElementById("select-demo");
+      const demoId = selectEl ? Number(selectEl.value) : 0;
+      if (!demoId) {
+        showErrorBanner("Selecciona una DEMO válida antes de iniciar.");
+        return;
+      }
+      runDemoSequence(demoId);
+    });
+  }
+
+  const btnCancelDemo = document.getElementById("btn-cancel-demo");
+  if (btnCancelDemo) {
+    btnCancelDemo.addEventListener("click", () => {
+      executePriorityStop("CANCELAR DEMO");
+    });
+  }
+}
+
+/**
+ * Configura el joystick virtual
+ */
+function initJoystickControl() {
+  const baseEl = document.getElementById("joystick-base");
+  const handleEl = document.getElementById("joystick-handle");
+
+  state.joystick = new VirtualJoystick({
+    baseEl,
+    handleEl,
+    onDirectionChange: async (direction) => {
+      if (state.isDemoRunning && direction.key !== "NEUTRAL") {
+        showErrorBanner("Hay una DEMO en curso. Cancélala o presiona DETENER primero.");
+        return;
+      }
+      await dispatchVehicleCommand(direction.id, direction.label, "WEB_JOYSTICK");
+    },
+  });
+}
+
+/**
+ * Inicia el canal WebSocket hacia AWS
+ */
+function initWebSocketChannel() {
+  state.wsClient = new VehicleWebSocket({
+    onOpenCallback: () => {
+      // Si el WebSocket abre en móvil, re-verificar indicadores si estaban pendientes
+      const apiText = document.getElementById("status-api-text")?.textContent;
+      if (apiText !== "Disponible") {
+        verifyBackendAndDatabaseHealth();
+      }
+    },
+    onEventCallback: (payload) => {
+      if (payload.evento === "NUEVO_MOVIMIENTO" && payload.datos) {
+        const nombreCmd = payload.datos.comando || `Comando`;
+        updateActiveCommandBadge(nombreCmd, payload.datos.comando_id === state.stopCommandId);
+        highlightActiveButton(payload.datos.comando_id);
+      }
+    },
+  });
+
+  state.wsClient.connect();
+}
+
+/**
+ * Comprueba en paralelo el estado de los indicadores: API AWS (21 servicios) y Amazon RDS
+ */
+async function verifyBackendAndDatabaseHealth() {
+  setIndicatorState("api", "checking", "Comprobando");
+  setIndicatorState("rds", "checking", "Sin verificar");
+
+  const [apiResult, rdsResult] = await Promise.all([checkApiHealth(), checkRdsHealth()]);
+
+  if (rdsResult.ok) {
+    // Si Amazon RDS respondió desde FastAPI, tanto la API como RDS están 100% disponibles
+    setIndicatorState("api", "online", "Disponible");
+    setIndicatorState("rds", "online", "Disponible");
+    if (rdsResult.data?.ultimo_comando) {
+      updateActiveCommandBadge(
+        rdsResult.data.ultimo_comando,
+        rdsResult.data.ultimo_comando.toLowerCase().includes("detener")
+      );
     }
-  } catch {
-    // Mantiene los botones iniciales en caso de fallo de red
+    return;
+  }
+
+  if (apiResult.ok) {
+    setIndicatorState("api", "online", "Disponible");
+    setIndicatorState("rds", "offline", "No disponible");
+  } else {
+    setIndicatorState("api", "offline", "No disponible");
+    setIndicatorState("rds", "offline", "No disponible");
+  }
+}
+
+/**
+ * Carga información del vehículo, su catálogo de comandos y las DEMO disponibles
+ */
+async function loadCatalogAndDemos() {
+  try {
+    const vehicle = await fetchVehicleInfo();
+    if (vehicle && vehicle.nombre) {
+      const titleEl = document.getElementById("vehicle-title");
+      if (titleEl) titleEl.textContent = vehicle.nombre.toUpperCase();
+    }
+  } catch (_) {
+    // Mantener título por defecto
+  }
+
+  try {
+    const commands = await fetchVehicleCommands();
+    if (Array.isArray(commands) && commands.length > 0) {
+      applyCommandCatalog(commands);
+    }
+  } catch (_) {
+    // Mantener catálogo base ya renderizado
   }
 
   try {
     const demos = await fetchDemos();
-    if (demos.length > 0) {
-      renderDemoOptions(demos);
-    }
-  } catch {
-    // Mantiene la opción inicial en caso de fallo de red
+    populateDemoSelect(demos);
+  } catch (_) {
+    populateDemoSelect([{ id: 1, nombre: "Demo principal" }]);
   }
 }
 
-async function executeMovementCommand(
-  comandoId,
-  commandName,
-  origen = "WEB_JOYSTICK"
-) {
-  const numericId = Number(comandoId);
-  const isPriorityStop = numericId === COMMAND_IDS.DETENER;
+/**
+ * Aplica el catálogo de comandos separando los 5 del joystick de los controles secundarios
+ */
+function applyCommandCatalog(commands) {
+  state.commands = commands.filter((c) => c.activo !== false);
 
-  if (!isValidCommandId(numericId)) {
+  const findCmd = (keywords, fallbackId) =>
+    state.commands.find((c) =>
+      keywords.some(
+        (kw) =>
+          c.nombre.toLowerCase().includes(kw) ||
+          (c.codigo && c.codigo.toLowerCase().includes(kw))
+      )
+    ) || state.commands.find((c) => c.id === fallbackId);
+
+  const cmdUp = findCmd(["avanzar", "adelante"], 1);
+  const cmdDown = findCmd(["retroceder", "atras"], 2);
+  const cmdRight = findCmd(["girar derecha"], 5);
+  const cmdLeft = findCmd(["girar izquierda"], 6);
+  const cmdStop = findCmd(["detener", "stop", "paro"], 13);
+  const cmdDemo = findCmd(["demo"], 12);
+
+  if (cmdStop) state.stopCommandId = cmdStop.id;
+
+  state.joystick?.setCommandMapping({
+    UP: cmdUp,
+    DOWN: cmdDown,
+    LEFT: cmdLeft,
+    RIGHT: cmdRight,
+    NEUTRAL: cmdStop,
+  });
+
+  const excludedIds = new Set(
+    [cmdUp?.id, cmdDown?.id, cmdLeft?.id, cmdRight?.id, cmdStop?.id, cmdDemo?.id].filter(Boolean)
+  );
+
+  const secondaryCommands = state.commands.filter((c) => !excludedIds.has(c.id));
+
+  renderActionButtons(secondaryCommands, async (cmd) => {
+    if (state.isDemoRunning) {
+      showErrorBanner("No puedes enviar comandos manuales mientras se ejecuta una DEMO.");
+      return;
+    }
+    await dispatchVehicleCommand(cmd.id, cmd.nombre, "WEB_BOTON");
+  });
+}
+
+/**
+ * Envía un comando de movimiento individual al backend
+ */
+async function dispatchVehicleCommand(comandoId, nombreComando, origen = "WEB_CONTROL") {
+  hideErrorBanner();
+  const isStop = comandoId === state.stopCommandId;
+
+  updateActiveCommandBadge(nombreComando, isStop);
+  highlightActiveButton(comandoId);
+
+  try {
+    await sendMovement(comandoId, origen);
+    setIndicatorState("api", "online", "Disponible");
+    setIndicatorState("rds", "online", "Disponible");
+  } catch (err) {
+    const msg = err?.message || "";
+    if (!msg || msg === "SUPERSEDED" || msg === "undefined") {
+      return;
+    }
+    showErrorBanner(`No se pudo enviar «${nombreComando}»: ${msg}`);
+  }
+}
+
+/**
+ * DETENCIÓN PRIORITARIA: Cancela cualquier DEMO en curso, centra el joystick y envía DETENER
+ */
+async function executePriorityStop(motivo = "DETENCIÓN PRIORITARIA") {
+  hideErrorBanner();
+
+  if (state.isDemoRunning) {
+    state.demoCancelRequested = true;
+    if (state.demoSleepTimer) {
+      clearTimeout(state.demoSleepTimer);
+      state.demoSleepTimer = null;
+    }
+    state.isDemoRunning = false;
+    state.joystick?.setDisabled(false);
+    setControlsDisabled(false);
+    setDemoProgressUI({
+      active: false,
+      stepText: "Secuencia cancelada",
+      percent: 0,
+    });
+  }
+
+  state.joystick?.resetToCenter(false);
+  await dispatchVehicleCommand(state.stopCommandId, "Detener", `PRIORIDAD_${motivo}`);
+}
+
+/**
+ * Ejecuta una secuencia DEMO consultando sus N pasos desde el backend y respetando duración y pausa
+ */
+async function runDemoSequence(demoId) {
+  if (state.isDemoRunning) {
+    showErrorBanner("Ya hay una secuencia DEMO en ejecución.");
     return;
   }
 
-  if (isDemoRunning && !isPriorityStop) {
-    showAlert("Cancela primero el modo DEMO para usar los controles manuales.", "warning");
-    return;
-  }
+  hideErrorBanner();
+  state.isDemoRunning = true;
+  state.demoCancelRequested = false;
+  state.joystick?.setDisabled(true);
+  setControlsDisabled(true);
 
-  if (isSendingCommand && !isPriorityStop && origen === "WEB_BOTON") {
-    return;
-  }
-
-  isSendingCommand = true;
-  setDispatchStateBadge("sending", "Enviando...");
-  setActionButtonState(numericId, "pressed");
-  setActionButtonState(numericId, "sending");
-
-  updateJoystickTelemetry({
-    angle: 0,
-    force: isPriorityStop ? 0 : 100,
-    direction: commandName,
-    commandLabel: commandName,
+  setDemoProgressUI({
+    active: true,
+    stepText: "Preparando secuencia...",
+    percent: 5,
   });
 
   try {
-    await sendMovement(numericId, origen);
-    setDispatchStateBadge("accepted", commandName);
-    setActionButtonState(numericId, "accepted");
+    await registerDemoExecution(demoId);
+    const steps = await fetchDemoMovements(demoId);
 
-    setTimeout(() => {
-      setActionButtonState(numericId, isDemoRunning ? "disabled" : "normal");
-      setDispatchStateBadge("normal", "Listo");
-    }, 800);
-  } catch (error) {
-    if (
-      !error ||
-      error === "SUPERSEDED" ||
-      error.isSuperseded ||
-      error.name === "AbortError" ||
-      !error.message
-    ) {
-      setActionButtonState(numericId, "normal");
-      return;
+    if (!Array.isArray(steps) || steps.length === 0) {
+      throw new Error("La DEMO seleccionada no tiene movimientos configurados.");
     }
 
-    setDispatchStateBadge("error", "Error");
-    setActionButtonState(numericId, "error");
-    showAlert(`No se pudo enviar «${commandName}»`, "danger");
+    const sortedSteps = [...steps].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+    const total = sortedSteps.length;
 
-    setTimeout(() => {
-      setActionButtonState(numericId, isDemoRunning ? "disabled" : "normal");
-    }, 1500);
+    for (let i = 0; i < total; i++) {
+      if (state.demoCancelRequested) break;
+
+      const step = sortedSteps[i];
+      const stepNum = i + 1;
+      const pct = Math.round((stepNum / total) * 100);
+      const durationSec = Number(step.duracion_segundos) || 2;
+      const pauseSec = Number(step.pausa_segundos) || 0;
+
+      setDemoProgressUI({
+        active: true,
+        stepText: `Paso ${stepNum}/${total}: ${step.comando} (${durationSec}s)`,
+        percent: pct,
+      });
+
+      updateActiveCommandBadge(`DEMO · ${step.comando}`, false);
+
+      await waitInterruptible(durationSec * 1000);
+      if (state.demoCancelRequested) break;
+
+      if (pauseSec > 0) {
+        setDemoProgressUI({
+          active: true,
+          stepText: `Pausa (${pauseSec}s)...`,
+          percent: pct,
+        });
+        await waitInterruptible(pauseSec * 1000);
+      }
+    }
+
+    if (!state.demoCancelRequested) {
+      await sendMovement(state.stopCommandId, "FIN_DEMO");
+      updateActiveCommandBadge("Detener", true);
+    }
+  } catch (err) {
+    showErrorBanner(`Error durante la DEMO: ${err?.message || "Error de conexión"}`);
   } finally {
-    isSendingCommand = false;
+    state.isDemoRunning = false;
+    state.demoCancelRequested = false;
+    state.joystick?.setDisabled(false);
+    setControlsDisabled(false);
+    setDemoProgressUI({ active: false });
   }
 }
 
-function setDemoLockState(running) {
-  isDemoRunning = Boolean(running);
-  const startDemoBtn = document.getElementById("btn-start-demo");
-  const selectDemoEl = document.getElementById("select-demo");
-
-  if (startDemoBtn) startDemoBtn.disabled = isDemoRunning;
-  if (selectDemoEl) selectDemoEl.disabled = isDemoRunning;
-
-  setAllActionButtonsDisabled(isDemoRunning);
-  if (joystickController) {
-    joystickController.setDisabled(isDemoRunning);
-  }
-}
-
-function bindUiEvents() {
-  const stopBtn = document.getElementById("btn-emergency-stop");
-  if (stopBtn) {
-    stopBtn.addEventListener("click", async () => {
-      if (joystickController) {
-        joystickController.resetToCenter(false);
-      }
-      if (isDemoRunning) {
-        setDemoLockState(false);
-        updateDemoStatusBadge("cancelled", "Detenida");
-        try {
-          await cancelDemo(COMMAND_IDS.DETENER);
-        } catch {
-          // Continúa con el envío prioritario de Detener
-        }
-      }
-      await executeMovementCommand(COMMAND_IDS.DETENER, "Detener", "PARO_PRIORITARIO");
-      showAlert("Vehículo detenido.", "warning", 1800);
-    });
-  }
-
-  const staticActionButtons = document.querySelectorAll(".btn-action-cmd");
-  staticActionButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const cmdId = Number(btn.dataset.cmdId) || COMMAND_IDS.DETENER;
-      const cmdName = btn.dataset.cmdName || getCommandNameById(cmdId);
-      executeMovementCommand(cmdId, cmdName, "WEB_BOTON");
-    });
+/**
+ * Promesa de espera cancelable inmediatamente por executePriorityStop
+ */
+function waitInterruptible(ms) {
+  return new Promise((resolve) => {
+    state.demoSleepTimer = setTimeout(() => {
+      state.demoSleepTimer = null;
+      resolve();
+    }, ms);
   });
-
-  const startDemoBtn = document.getElementById("btn-start-demo");
-  const selectDemoEl = document.getElementById("select-demo");
-
-  if (startDemoBtn && selectDemoEl) {
-    startDemoBtn.addEventListener("click", async () => {
-      if (isDemoRunning) return;
-
-      const demoId = Number(selectDemoEl.value);
-      if (!demoId) return;
-
-      try {
-        setDemoLockState(true);
-        updateDemoStatusBadge("running", "En ejecución");
-        await startDemo(demoId);
-        updateDemoStatusBadge("idle", "Finalizada");
-        showAlert("Demostración completada.", "success", 2200);
-      } catch (error) {
-        if (!error || !error.isSuperseded) {
-          updateDemoStatusBadge("idle", "Inactivo");
-          showAlert("No se pudo iniciar la demostración.", "danger");
-        }
-      } finally {
-        setDemoLockState(false);
-      }
-    });
-  }
-
-  const cancelDemoBtn = document.getElementById("btn-cancel-demo");
-  if (cancelDemoBtn) {
-    cancelDemoBtn.addEventListener("click", async () => {
-      setDemoLockState(false);
-      updateDemoStatusBadge("cancelled", "Cancelada");
-
-      try {
-        await cancelDemo(COMMAND_IDS.DETENER);
-      } catch {
-        // Continúa con el paro prioritario
-      } finally {
-        await executeMovementCommand(COMMAND_IDS.DETENER, "Detener", "CANCELAR_DEMO");
-        showAlert("Demostración cancelada.", "warning", 2000);
-      }
-    });
-  }
-
-  const refreshHealthBtn = document.getElementById("btn-refresh-health");
-  if (refreshHealthBtn) {
-    refreshHealthBtn.addEventListener("click", async () => {
-      await verifyBackendAndDatabaseHealth();
-      await loadInitialCatalogs();
-      if (wsClient && (!wsClient.socket || wsClient.socket.readyState !== WebSocket.OPEN)) {
-        wsClient.connect();
-      }
-    });
-  }
 }
-
-async function initApp() {
-  const baseElement = document.getElementById("joystick-zone");
-  const knobElement = document.getElementById("joystick-knob");
-
-  joystickController = new CircularJoystick({
-    baseElement,
-    knobElement,
-    rateLimitMs: 180,
-    deadzoneRatio: 0.22,
-    onCommand: (comandoId, commandLabel) => {
-      executeMovementCommand(comandoId, commandLabel, "WEB_JOYSTICK");
-    },
-  });
-
-  bindUiEvents();
-
-  wsClient = new VehicleWebSocketClient({
-    onMessageCallback: (payload) => {
-      if (payload.evento === "INICIO_DEMO") {
-        setDemoLockState(true);
-      } else if (payload.evento === "FIN_DEMO") {
-        setDemoLockState(false);
-      }
-    },
-  });
-  wsClient.connect();
-
-  await verifyBackendAndDatabaseHealth();
-  await loadInitialCatalogs();
-
-  setInterval(() => {
-    verifyBackendAndDatabaseHealth();
-  }, HEALTH_POLL_INTERVAL_MS);
-}
-
-document.addEventListener("DOMContentLoaded", initApp);

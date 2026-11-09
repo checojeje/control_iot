@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="description" content="Control Remoto para Excavadora IoT" />
-  <meta name="theme-color" content="#0d1015" />
+  <meta name="theme-color" content="#0b0f17" />
   <title>Control Vehículo IoT · Excavadora IoT</title>
 
   <!-- Favicon propio del proyecto -->
@@ -23,101 +23,90 @@
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
   />
   <!-- Estilos personalizados -->
-  <link rel="stylesheet" href="./assets/css/style.css?v=4" />
+  <link rel="stylesheet" href="./assets/css/style.css?v=5" />
 </head>
-<body class="app-viewport bg-body-tertiary">
+<body class="app-viewport">
 
   <!-- HEADER COMPACTO -->
-  <header class="app-header navbar navbar-dark bg-dark border-bottom border-secondary-subtle px-3">
-    <div class="container-fluid px-0 d-flex justify-content-between align-items-center">
+  <header class="app-header">
+    <div class="header-inner">
       <div class="d-flex align-items-center gap-2">
-        <img src="./assets/favicon.svg" alt="Icono Control IoT" width="24" height="24" />
-        <h1 id="vehicle-title" class="h6 mb-0 fw-bold text-uppercase tracking-wide">Excavadora IoT</h1>
+        <img src="./assets/favicon.svg" alt="Icono Control IoT" width="26" height="26" class="header-logo" />
+        <div>
+          <h1 id="vehicle-title" class="header-title mb-0">Excavadora IoT</h1>
+        </div>
       </div>
       <button
         id="btn-refresh-health"
         type="button"
-        class="btn btn-sm btn-outline-info py-0 px-2 d-flex align-items-center gap-1"
+        class="btn btn-sm btn-reconnect d-flex align-items-center gap-1"
         title="Comprobar conexión"
         aria-label="Comprobar conexión"
       >
         <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-        <span class="small">Conectar</span>
+        <span>Sincronizar</span>
       </button>
     </div>
   </header>
 
   <!-- CONTENIDO PRINCIPAL SIN SCROLL -->
-  <main class="app-main container-fluid px-2 px-md-3">
+  <main class="app-main">
 
-    <!-- PANEL DE CONECTIVIDAD COMPACTO (3 Indicadores en 1 sola fila) -->
-    <section aria-label="Estado de Conectividad" class="connectivity-bar card bg-dark border-secondary-subtle">
-      <div class="card-body py-1 px-2">
-        <div class="row g-1 text-center align-items-center">
-          <!-- Indicador 1: WebSocket WSS -->
-          <div class="col-4">
-            <div class="status-item">
-              <div class="d-flex align-items-center justify-content-center gap-1">
-                <span id="status-dot-ws" class="status-dot status-connecting" aria-hidden="true"></span>
-                <i id="status-icon-ws" class="bi bi-broadcast text-warning status-icon" aria-hidden="true"></i>
-                <span class="status-title">WebSocket</span>
-              </div>
-              <span id="status-text-ws" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
-                Conectando
-              </span>
-            </div>
-          </div>
-
-          <!-- Indicador 2: Servidor AWS -->
-          <div class="col-4 border-start border-end border-secondary-subtle">
-            <div class="status-item">
-              <div class="d-flex align-items-center justify-content-center gap-1">
-                <span id="status-dot-api" class="status-dot status-connecting" aria-hidden="true"></span>
-                <i id="status-icon-api" class="bi bi-cloud-check text-warning status-icon" aria-hidden="true"></i>
-                <span class="status-title">Servidor AWS</span>
-              </div>
-              <span id="status-text-api" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
-                Comprobando
-              </span>
-            </div>
-          </div>
-
-          <!-- Indicador 3: Amazon RDS -->
-          <div class="col-4">
-            <div class="status-item">
-              <div class="d-flex align-items-center justify-content-center gap-1">
-                <span id="status-dot-rds" class="status-dot status-connecting" aria-hidden="true"></span>
-                <i id="status-icon-rds" class="bi bi-database-check text-warning status-icon" aria-hidden="true"></i>
-                <span class="status-title">Amazon RDS</span>
-              </div>
-              <span id="status-text-rds" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
-                Sin verificar
-              </span>
-            </div>
-          </div>
+    <!-- PANEL DE CONECTIVIDAD (3 Indicadores en 1 fila integrada) -->
+    <section aria-label="Estado de Conectividad" class="connectivity-bar">
+      <div class="status-pill-card">
+        <div class="d-flex align-items-center gap-1">
+          <span id="status-dot-ws" class="status-dot status-connecting" aria-hidden="true"></span>
+          <i id="status-icon-ws" class="bi bi-broadcast text-warning status-icon" aria-hidden="true"></i>
+          <span class="status-title">WebSocket</span>
         </div>
+        <span id="status-text-ws" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
+          Conectando
+        </span>
+      </div>
+
+      <div class="status-pill-card">
+        <div class="d-flex align-items-center gap-1">
+          <span id="status-dot-api" class="status-dot status-connecting" aria-hidden="true"></span>
+          <i id="status-icon-api" class="bi bi-cloud-check text-warning status-icon" aria-hidden="true"></i>
+          <span class="status-title">Servidor AWS</span>
+        </div>
+        <span id="status-text-api" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
+          Comprobando
+        </span>
+      </div>
+
+      <div class="status-pill-card">
+        <div class="d-flex align-items-center gap-1">
+          <span id="status-dot-rds" class="status-dot status-connecting" aria-hidden="true"></span>
+          <i id="status-icon-rds" class="bi bi-database-check text-warning status-icon" aria-hidden="true"></i>
+          <span class="status-title">Amazon RDS</span>
+        </div>
+        <span id="status-text-rds" class="badge rounded-pill text-bg-warning status-badge" aria-live="polite">
+          Sin verificar
+        </span>
       </div>
     </section>
 
-    <!-- ALERTAS FLOTANTES (No empujan el layout ni generan scroll) -->
+    <!-- ALERTAS FLOTANTES -->
     <div id="alert-container" class="floating-alerts" aria-live="assertive"></div>
 
-    <!-- GRILLA PRINCIPAL ADAPTATIVA -->
+    <!-- GRILLA PRINCIPAL DE CONTROL -->
     <div class="control-grid">
 
       <!-- PANEL IZQUIERDO / SUPERIOR: JOYSTICK Y BOTÓN DETENER -->
-      <section class="card bg-dark border-secondary-subtle panel-joystick" aria-labelledby="joystick-heading">
-        <div class="card-header bg-transparent border-secondary-subtle d-flex justify-content-between align-items-center py-1 px-3">
-          <h2 id="joystick-heading" class="panel-title mb-0 d-flex align-items-center gap-1">
+      <section class="glass-card panel-joystick" aria-labelledby="joystick-heading">
+        <div class="card-top-bar">
+          <h2 id="joystick-heading" class="panel-title mb-0">
             <i class="bi bi-joystick text-info" aria-hidden="true"></i>
-            <span>Dirección</span>
+            <span>Control de Dirección</span>
           </h2>
-          <span id="active-command-badge" class="badge rounded-pill text-bg-secondary" aria-live="polite">
+          <span id="active-command-badge" class="badge rounded-pill text-bg-secondary cmd-badge" aria-live="polite">
             Detener
           </span>
         </div>
 
-        <div class="card-body d-flex flex-column align-items-center justify-content-around py-2 px-2">
+        <div class="joystick-body">
           <!-- Contenedor Circular del Joystick -->
           <div class="joystick-wrapper">
             <div
@@ -138,140 +127,148 @@
             </div>
           </div>
 
-          <!-- Indicador compacto de dirección -->
-          <div class="d-flex justify-content-center gap-3 text-secondary telemetry-row">
-            <span>Ángulo: <strong id="joystick-angle" class="text-light">0°</strong></span>
-            <span>Fuerza: <strong id="joystick-force" class="text-light">0%</strong></span>
-            <span>Estado: <strong id="joystick-direction" class="text-info">Detener</strong></span>
+          <!-- Píldoras de telemetría -->
+          <div class="telemetry-bar">
+            <div class="telemetry-chip">
+              <span class="telemetry-label">Ángulo</span>
+              <strong id="joystick-angle" class="telemetry-value">0°</strong>
+            </div>
+            <div class="telemetry-chip">
+              <span class="telemetry-label">Potencia</span>
+              <strong id="joystick-force" class="telemetry-value">0%</strong>
+            </div>
+            <div class="telemetry-chip">
+              <span class="telemetry-label">Movimiento</span>
+              <strong id="joystick-direction" class="telemetry-value text-info">Detener</strong>
+            </div>
           </div>
 
           <!-- BOTÓN DE DETENER PRIORITARIO -->
-          <div class="w-100 px-1">
-            <button
-              id="btn-emergency-stop"
-              type="button"
-              data-cmd-id="13"
-              data-cmd-name="Detener"
-              class="btn btn-danger w-100 fw-bold text-uppercase shadow-sm d-flex align-items-center justify-content-center gap-2"
-              aria-label="Detener vehículo inmediatamente"
-            >
-              <i class="bi bi-octagon-fill" aria-hidden="true"></i>
-              <span>DETENER VEHÍCULO</span>
-            </button>
-          </div>
+          <button
+            id="btn-emergency-stop"
+            type="button"
+            data-cmd-id="13"
+            data-cmd-name="Detener"
+            class="btn-stop-vehicle"
+            aria-label="Detener vehículo inmediatamente"
+          >
+            <i class="bi bi-octagon-fill" aria-hidden="true"></i>
+            <span>DETENER VEHÍCULO</span>
+          </button>
         </div>
       </section>
 
-      <!-- PANEL DERECHO / INFERIOR: CONTROLES Y RUTINAS DEMO -->
+      <!-- PANEL DERECHO / INFERIOR: FUNCIONES Y MODO DEMO -->
       <div class="panel-actions-wrapper">
 
-        <!-- CONTROLES DEL VEHÍCULO -->
-        <section class="card bg-dark border-secondary-subtle panel-controls" aria-labelledby="actions-heading">
-          <div class="card-header bg-transparent border-secondary-subtle d-flex justify-content-between align-items-center py-1 px-3">
-            <h2 id="actions-heading" class="panel-title mb-0 d-flex align-items-center gap-1">
-              <i class="bi bi-grid-3x3-gap-fill text-warning" aria-hidden="true"></i>
+        <!-- FUNCIONES DEL VEHÍCULO -->
+        <section class="glass-card panel-controls" aria-labelledby="actions-heading">
+          <div class="card-top-bar">
+            <h2 id="actions-heading" class="panel-title mb-0">
+              <i class="bi bi-sliders2 text-warning" aria-hidden="true"></i>
               <span>Funciones del Vehículo</span>
             </h2>
-            <small id="dispatch-state-badge" class="badge text-bg-secondary">Listo</small>
+            <small id="dispatch-state-badge" class="badge rounded-pill text-bg-secondary cmd-badge">Listo</small>
           </div>
-          <div class="card-body py-2 px-2 d-flex align-items-center">
-            <div id="commands-container" class="row g-1 g-sm-2 w-100 m-0">
-              <div class="col-6 p-1">
-                <button
-                  type="button"
-                  class="btn btn-outline-info w-100 btn-action-cmd"
-                  data-cmd-id="3"
-                  data-cmd-name="Cabina Izquierda"
-                >
-                  <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i> Cabina Izq.
-                </button>
-              </div>
-              <div class="col-6 p-1">
-                <button
-                  type="button"
-                  class="btn btn-outline-info w-100 btn-action-cmd"
-                  data-cmd-id="4"
-                  data-cmd-name="Cabina Derecha"
-                >
-                  <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i> Cabina Der.
-                </button>
-              </div>
-              <div class="col-6 p-1">
-                <button
-                  type="button"
-                  class="btn btn-outline-warning w-100 btn-action-cmd"
-                  data-cmd-id="7"
-                  data-cmd-name="Bajar Garra"
-                >
-                  <i class="bi bi-arrow-down-circle-fill me-1" aria-hidden="true"></i> Bajar Garra
-                </button>
-              </div>
-              <div class="col-6 p-1">
-                <button
-                  type="button"
-                  class="btn btn-outline-warning w-100 btn-action-cmd"
-                  data-cmd-id="8"
-                  data-cmd-name="Subir Garra"
-                >
-                  <i class="bi bi-arrow-up-circle-fill me-1" aria-hidden="true"></i> Subir Garra
-                </button>
-              </div>
-              <div class="col-4 p-1">
-                <button
-                  type="button"
-                  class="btn btn-outline-light w-100 btn-action-cmd"
-                  data-cmd-id="9"
-                  data-cmd-name="Luz"
-                >
-                  <i class="bi bi-lightbulb-fill me-1 text-warning" aria-hidden="true"></i> Luz
-                </button>
-              </div>
-              <div class="col-4 p-1">
-                <button
-                  type="button"
-                  class="btn btn-outline-light w-100 btn-action-cmd"
-                  data-cmd-id="10"
-                  data-cmd-name="Sonido"
-                >
-                  <i class="bi bi-volume-up-fill me-1 text-info" aria-hidden="true"></i> Sonido
-                </button>
-              </div>
-              <div class="col-4 p-1">
-                <button
-                  type="button"
-                  class="btn btn-outline-light w-100 btn-action-cmd"
-                  data-cmd-id="11"
-                  data-cmd-name="Velocidad"
-                >
-                  <i class="bi bi-speedometer2 me-1 text-success" aria-hidden="true"></i> Velocidad
-                </button>
-              </div>
-            </div>
+
+          <div id="commands-container" class="actions-grid">
+            <button
+              type="button"
+              class="btn-action-cmd action-cyan span-3"
+              data-cmd-id="3"
+              data-cmd-name="Cabina Izquierda"
+            >
+              <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+              <span>Cabina Izq.</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-action-cmd action-cyan span-3"
+              data-cmd-id="4"
+              data-cmd-name="Cabina Derecha"
+            >
+              <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+              <span>Cabina Der.</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-action-cmd action-amber span-3"
+              data-cmd-id="7"
+              data-cmd-name="Bajar Garra"
+            >
+              <i class="bi bi-arrow-down-circle-fill" aria-hidden="true"></i>
+              <span>Bajar Garra</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-action-cmd action-amber span-3"
+              data-cmd-id="8"
+              data-cmd-name="Subir Garra"
+            >
+              <i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i>
+              <span>Subir Garra</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-action-cmd action-neutral span-2"
+              data-cmd-id="9"
+              data-cmd-name="Luz"
+            >
+              <i class="bi bi-lightbulb-fill text-warning" aria-hidden="true"></i>
+              <span>Luz</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-action-cmd action-neutral span-2"
+              data-cmd-id="10"
+              data-cmd-name="Sonido"
+            >
+              <i class="bi bi-volume-up-fill text-info" aria-hidden="true"></i>
+              <span>Sonido</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-action-cmd action-neutral span-2"
+              data-cmd-id="11"
+              data-cmd-name="Velocidad"
+            >
+              <i class="bi bi-speedometer2 text-success" aria-hidden="true"></i>
+              <span>Velocidad</span>
+            </button>
           </div>
         </section>
 
-        <!-- RUTINAS DEMO -->
-        <section class="card bg-dark border-secondary-subtle panel-demo" aria-labelledby="demos-heading">
-          <div class="card-header bg-transparent border-secondary-subtle d-flex justify-content-between align-items-center py-1 px-3">
-            <h2 id="demos-heading" class="panel-title mb-0 d-flex align-items-center gap-1">
-              <i class="bi bi-play-btn-fill text-success" aria-hidden="true"></i>
-              <span>Modo DEMO</span>
+        <!-- MODO DEMO -->
+        <section class="glass-card panel-demo" aria-labelledby="demos-heading">
+          <div class="card-top-bar">
+            <h2 id="demos-heading" class="panel-title mb-0">
+              <i class="bi bi-play-circle-fill text-success" aria-hidden="true"></i>
+              <span>Secuencia Automática (DEMO)</span>
             </h2>
-            <span id="demo-status-badge" class="badge text-bg-secondary" aria-live="polite">Inactivo</span>
+            <span id="demo-status-badge" class="badge rounded-pill text-bg-secondary cmd-badge" aria-live="polite">
+              Inactivo
+            </span>
           </div>
-          <div class="card-body py-2 px-2 d-flex flex-column justify-content-center gap-2">
+
+          <div class="demo-body">
             <select
               id="select-demo"
-              class="form-select form-select-sm bg-body-tertiary text-light border-secondary"
+              class="form-select demo-select"
               aria-label="Seleccionar rutina DEMO"
             >
               <option value="1" selected>Demo principal</option>
             </select>
-            <div class="d-flex gap-2">
+            <div class="demo-actions">
               <button
                 id="btn-start-demo"
                 type="button"
-                class="btn btn-sm btn-success flex-grow-1 d-flex align-items-center justify-content-center gap-1 fw-semibold demo-btn"
+                class="btn-demo-start"
               >
                 <i class="bi bi-play-fill" aria-hidden="true"></i>
                 <span>Iniciar DEMO</span>
@@ -279,7 +276,7 @@
               <button
                 id="btn-cancel-demo"
                 type="button"
-                class="btn btn-sm btn-outline-warning d-flex align-items-center justify-content-center gap-1 fw-semibold demo-btn"
+                class="btn-demo-cancel"
               >
                 <i class="bi bi-stop-fill" aria-hidden="true"></i>
                 <span>Cancelar</span>
@@ -292,11 +289,9 @@
     </div>
   </main>
 
-  <!-- FOOTER OBLIGATORIO COMPACTO -->
-  <footer class="app-footer bg-dark border-top border-secondary-subtle text-center">
-    <small class="text-light fw-medium">
-      Desarrollado por Jesús Sergio Quiroz Guzmán · 2026
-    </small>
+  <!-- FOOTER OBLIGATORIO -->
+  <footer class="app-footer">
+    <small>Desarrollado por Jesús Sergio Quiroz Guzmán · 2026</small>
   </footer>
 
   <!-- Bootstrap 5.3 JS Bundle -->
@@ -306,6 +301,6 @@
     crossorigin="anonymous"
   ></script>
   <!-- Punto de entrada ES6 Module -->
-  <script type="module" src="./assets/js/app.js?v=4"></script>
+  <script type="module" src="./assets/js/app.js?v=5"></script>
 </body>
 </html>

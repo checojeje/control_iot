@@ -24,12 +24,6 @@ const DEFAULT_SERVICE_LABELS = {
   },
 };
 
-/**
- * Actualiza uno de los 3 indicadores visuales del Panel de Conectividad.
- * @param {'ws' | 'api' | 'rds'} service
- * @param {'connected' | 'connecting' | 'disconnected'} state
- * @param {string} [customLabel]
- */
 export function updateServiceStatus(service, state, customLabel) {
   const dotEl = document.getElementById(`status-dot-${service}`);
   const textEl = document.getElementById(`status-text-${service}`);
@@ -72,20 +66,15 @@ export function updateServiceStatus(service, state, customLabel) {
   }
 }
 
-/**
- * Actualiza el indicador de estado de envío en la tarjeta de controles (`#dispatch-state-badge`).
- * @param {'normal' | 'sending' | 'accepted' | 'error'} state
- * @param {string} [label]
- */
 export function setDispatchStateBadge(state, label) {
   const badge = document.getElementById("dispatch-state-badge");
   if (!badge) return;
 
   const map = {
-    normal: { cls: "badge text-bg-secondary", text: label || "Listo" },
-    sending: { cls: "badge text-bg-warning", text: label || "Enviando..." },
-    accepted: { cls: "badge text-bg-success", text: label || "Aceptado" },
-    error: { cls: "badge text-bg-danger", text: label || "Error" },
+    normal: { cls: "badge rounded-pill text-bg-secondary cmd-badge", text: label || "Listo" },
+    sending: { cls: "badge rounded-pill text-bg-warning cmd-badge", text: label || "Enviando..." },
+    accepted: { cls: "badge rounded-pill text-bg-success cmd-badge", text: label || "Aceptado" },
+    error: { cls: "badge rounded-pill text-bg-danger cmd-badge", text: label || "Error" },
   };
 
   const cfg = map[state] || map.normal;
@@ -93,12 +82,6 @@ export function setDispatchStateBadge(state, label) {
   badge.textContent = cfg.text;
 }
 
-/**
- * Aplica los estados visuales a un botón de comando:
- * normal, presionado, enviando, aceptado, error y deshabilitado.
- * @param {number|string} cmdId
- * @param {'normal' | 'pressed' | 'sending' | 'accepted' | 'error' | 'disabled'} state
- */
 export function setActionButtonState(cmdId, state) {
   const buttons = document.querySelectorAll(`.btn-action-cmd[data-cmd-id="${cmdId}"]`);
   buttons.forEach((btn) => {
@@ -122,10 +105,6 @@ export function setActionButtonState(cmdId, state) {
   });
 }
 
-/**
- * Habilita o deshabilita todos los botones secundarios (por ejemplo, mientras corre una DEMO).
- * @param {boolean} disabled
- */
 export function setAllActionButtonsDisabled(disabled) {
   const buttons = document.querySelectorAll(".btn-action-cmd");
   buttons.forEach((btn) => {
@@ -133,13 +112,7 @@ export function setAllActionButtonsDisabled(disabled) {
   });
 }
 
-/**
- * Muestra un mensaje flotante temporal sin alterar el alto de la pantalla.
- * @param {string} message
- * @param {'success' | 'danger' | 'warning' | 'info'} [type='info']
- * @param {number} [timeoutMs=2500]
- */
-export function showAlert(message, type = "info", timeoutMs = 2500) {
+export function showAlert(message, type = "info", timeoutMs = 2400) {
   const container = document.getElementById("alert-container");
   if (!container) return;
 
@@ -192,25 +165,9 @@ export function showAlert(message, type = "info", timeoutMs = 2500) {
   }
 }
 
-/**
- * Función de compatibilidad para registro interno (la bitácora visual fue removida para limpiar la vista del usuario).
- */
-export function appendEventLog() {
-  // No-op en vista de usuario final
-}
+export function appendEventLog() {}
+export function clearEventLog() {}
 
-export function clearEventLog() {
-  // No-op en vista de usuario final
-}
-
-/**
- * Actualiza los indicadores visuales de dirección del Joystick y el badge de comando activo.
- * @param {object} telemetry
- * @param {number} telemetry.angle
- * @param {number} telemetry.force
- * @param {string} telemetry.direction
- * @param {string} [telemetry.commandLabel]
- */
 export function updateJoystickTelemetry({ angle, force, direction, commandLabel }) {
   const angleEl = document.getElementById("joystick-angle");
   const forceEl = document.getElementById("joystick-force");
@@ -225,36 +182,27 @@ export function updateJoystickTelemetry({ angle, force, direction, commandLabel 
     badgeEl.textContent = String(commandLabel);
     const isStopped = String(commandLabel).toUpperCase().includes("DETENER");
     badgeEl.className = isStopped
-      ? "badge rounded-pill text-bg-secondary"
-      : "badge rounded-pill text-bg-info";
+      ? "badge rounded-pill text-bg-secondary cmd-badge"
+      : "badge rounded-pill text-bg-info cmd-badge";
   }
 }
 
-/**
- * Actualiza el badge de estado de ejecución de DEMO.
- * @param {'idle' | 'running' | 'cancelled'} state
- * @param {string} [text]
- */
 export function updateDemoStatusBadge(state, text) {
   const badge = document.getElementById("demo-status-badge");
   if (!badge) return;
 
   if (state === "running") {
-    badge.className = "badge text-bg-success";
+    badge.className = "badge rounded-pill text-bg-success cmd-badge";
     badge.textContent = text || "En ejecución";
   } else if (state === "cancelled") {
-    badge.className = "badge text-bg-warning";
+    badge.className = "badge rounded-pill text-bg-warning cmd-badge";
     badge.textContent = text || "Cancelada";
   } else {
-    badge.className = "badge text-bg-secondary";
+    badge.className = "badge rounded-pill text-bg-secondary cmd-badge";
     badge.textContent = text || "Inactivo";
   }
 }
 
-/**
- * Llena el selector `<select id="select-demo">` con las secuencias DEMO disponibles.
- * @param {Array<object>} demos
- */
 export function renderDemoOptions(demos = []) {
   const selectEl = document.getElementById("select-demo");
   if (!selectEl || !Array.isArray(demos) || demos.length === 0) return;
@@ -275,8 +223,7 @@ export function renderDemoOptions(demos = []) {
 }
 
 /**
- * Renderiza dinámicamente los botones de controles secundarios a partir del catálogo real
- * sin mostrar IDs internos de programación al usuario final.
+ * Renderiza dinámicamente los botones dentro de `.actions-grid` ocupando el 100% del espacio.
  * @param {Array<object>} commands
  * @param {function(number, string): void} onCommandClick
  */
@@ -296,27 +243,27 @@ export function renderActionButtons(commands = [], onCommandClick) {
   const getButtonStyleAndIcon = (name) => {
     const upper = name.toUpperCase();
     if (upper.includes("CABINA IZQUIERDA")) {
-      return { btnClass: "btn-outline-info", icon: "bi-arrow-counterclockwise", colClass: "col-6 p-1" };
+      return { styleClass: "action-cyan span-3", icon: "bi-arrow-counterclockwise", shortLabel: "Cabina Izq." };
     }
     if (upper.includes("CABINA DERECHA")) {
-      return { btnClass: "btn-outline-info", icon: "bi-arrow-clockwise", colClass: "col-6 p-1" };
+      return { styleClass: "action-cyan span-3", icon: "bi-arrow-clockwise", shortLabel: "Cabina Der." };
     }
     if (upper.includes("BAJAR GARRA")) {
-      return { btnClass: "btn-outline-warning", icon: "bi-arrow-down-circle-fill", colClass: "col-6 p-1" };
+      return { styleClass: "action-amber span-3", icon: "bi-arrow-down-circle-fill", shortLabel: "Bajar Garra" };
     }
     if (upper.includes("SUBIR GARRA")) {
-      return { btnClass: "btn-outline-warning", icon: "bi-arrow-up-circle-fill", colClass: "col-6 p-1" };
+      return { styleClass: "action-amber span-3", icon: "bi-arrow-up-circle-fill", shortLabel: "Subir Garra" };
     }
     if (upper.includes("LUZ")) {
-      return { btnClass: "btn-outline-light", icon: "bi-lightbulb-fill text-warning", colClass: "col-4 p-1" };
+      return { styleClass: "action-neutral span-2", icon: "bi-lightbulb-fill text-warning", shortLabel: "Luz" };
     }
     if (upper.includes("SONIDO")) {
-      return { btnClass: "btn-outline-light", icon: "bi-volume-up-fill text-info", colClass: "col-4 p-1" };
+      return { styleClass: "action-neutral span-2", icon: "bi-volume-up-fill text-info", shortLabel: "Sonido" };
     }
     if (upper.includes("VELOCIDAD")) {
-      return { btnClass: "btn-outline-light", icon: "bi-speedometer2 text-success", colClass: "col-4 p-1" };
+      return { styleClass: "action-neutral span-2", icon: "bi-speedometer2 text-success", shortLabel: "Velocidad" };
     }
-    return { btnClass: "btn-outline-info", icon: "bi-lightning-charge-fill", colClass: "col-6 p-1" };
+    return { styleClass: "action-cyan span-3", icon: "bi-lightning-charge-fill", shortLabel: name };
   };
 
   extraCommands.forEach((cmd) => {
@@ -324,25 +271,23 @@ export function renderActionButtons(commands = [], onCommandClick) {
     if (!Number.isInteger(cmdId) || cmdId <= 0) return;
 
     const cmdName = String(cmd.nombre || "Acción");
-    const { btnClass, icon, colClass } = getButtonStyleAndIcon(cmdName);
-
-    const col = document.createElement("div");
-    col.className = colClass;
+    const { styleClass, icon, shortLabel } = getButtonStyleAndIcon(cmdName);
 
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = `btn ${btnClass} w-100 btn-action-cmd text-truncate`;
+    btn.className = `btn-action-cmd ${styleClass}`;
     btn.dataset.cmdId = String(cmdId);
     btn.dataset.cmdName = cmdName;
 
     const iconEl = document.createElement("i");
-    iconEl.className = `bi ${icon} me-1`;
+    iconEl.className = `bi ${icon}`;
     iconEl.setAttribute("aria-hidden", "true");
 
-    const labelNode = document.createTextNode(` ${cmdName}`);
+    const spanEl = document.createElement("span");
+    spanEl.textContent = shortLabel;
 
     btn.appendChild(iconEl);
-    btn.appendChild(labelNode);
+    btn.appendChild(spanEl);
 
     btn.addEventListener("click", () => {
       if (typeof onCommandClick === "function") {
@@ -350,7 +295,6 @@ export function renderActionButtons(commands = [], onCommandClick) {
       }
     });
 
-    col.appendChild(btn);
-    container.appendChild(col);
+    container.appendChild(btn);
   });
 }

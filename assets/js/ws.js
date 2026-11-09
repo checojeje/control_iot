@@ -1,187 +1,107 @@
 /**
- * MÓDULO WEBSOCKET (assets/js/ws.js)
- * Mantiene una sesión WSS real con:
- * wss://api-iot-sergio.duckdns.org/ws/vehiculo/1
+ * @file ws.js
+ * @description Cliente WebSocket nativo con reconexión automática para recibir eventos de AWS
  */
 
-import {
-  updateServiceStatus,
-  updateDemoStatusBadge,
-  updateJoystickTelemetry,
-} from "./ui.js?v=4";
-import { COMMAND_IDS, getCommandNameById } from "./joystick.js?v=4";
+import { CONFIG } from "./api.js?v=5";
+import { setIndicatorState } from "./ui.js?v=5";
 
-export const WS_CONFIG = {
-  BASE_WSS_URL: "wss://api-iot-sergio.duckdns.org/ws/vehiculo/1",
-  VEHICULO_ID: 1,
-  RECONNECT_BASE_MS: 2000,
-  RECONNECT_MAX_MS: 15000,
-  HEARTBEAT_INTERVAL_MS: 25000,
-};
-
-export class VehicleWebSocketClient {
-  constructor(options = {}) {
+export class VehicleWebSocket {
+  constructor({ onEventCallback, onOpenCallback }) {
     this.socket = null;
+    this.onEventCallback = onEventCallback;
+    this.onOpenCallback = onOpenCallback;
     this.reconnectAttempts = 0;
+    this.maxReconnectDelay = 8000;
     this.reconnectTimer = null;
-    this.heartbeatTimer = null;
-    this.intentionallyClosed = false;
-    this.onMessageCallback = options.onMessageCallback || null;
+    this.isManualClose = false;
   }
 
   connect() {
-    this.intentionallyClosed = false;
-    this.clearTimers();
+    this.isManualClose = false;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
 
-    const wsUrl = WS_CONFIG.BASE_WSS_URL;
-    updateServiceStatus("ws", "connecting", "Conectando");
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.OPEN ||
+        this.socket.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
+    const statusText = this.reconnectAttempts > 0 ? "Reconectando" : "Conectando";
+    setIndicatorState("ws", "checking", statusText);
 
     try {
-      this.socket = new WebSocket(wsUrl);
-    } catch {
-      updateServiceStatus("ws", "disconnected", "Desconectado");
+      this.socket = new WebSocket(CONFIG.WS_URL);
+    } catch (_) {
+      setIndicatorState("ws", "offline", "Desconectado");
       this.scheduleReconnect();
       return;
     }
 
     this.socket.addEventListener("open", () => {
       this.reconnectAttempts = 0;
-      updateServiceStatus("ws", "connected", "En línea");
-      this.startHeartbeat();
+      setIndicatorState("ws", "online", "En línea");
+      if (typeof this.onOpenCallback === "function") {
+        this.onOpenCallback();
+      }
     });
 
     this.socket.addEventListener("message", (event) => {
-      this.handleIncomingMessage(event.data);
-    });
-
-    this.socket.addEventListener("error", () => {
-      // Manejado al cerrarse la sesión
+      try {
+        const payload = JSON.parse(event.data);
+        this.handleIncomingPayload(payload);
+      } catch (_) {
+        // Ignorar tramas no JSON
+      }
     });
 
     this.socket.addEventListener("close", () => {
-      this.stopHeartbeat();
-      updateServiceStatus("ws", "disconnected", "Desconectado");
-
-      if (!this.intentionallyClosed) {
+      setIndicatorState("ws", "offline", "Desconectado");
+      if (!this.isManualClose) {
         this.scheduleReconnect();
       }
     });
+
+    this.socket.addEventListener("error", () => {
+      setIndicatorState("ws", "offline", "Desconectado");
+    });
   }
 
-  handleIncomingMessage(rawData) {
-    let payload;
-    try {
-      payload = JSON.parse(rawData);
-    } catch {
-      return;
-    }
-
+  handleIncomingPayload(payload) {
     if (!payload || typeof payload !== "object") return;
-    const evento = String(payload.evento || "EVENTO");
-
-    switch (evento) {
-      case "NUEVO_MOVIMIENTO": {
-        const cmdId = Number(payload.comando_id);
-        const cmdName = getCommandNameById(cmdId);
-        const isStopped = cmdId === COMMAND_IDS.DETENER;
-
-        updateJoystickTelemetry({
-          angle: 0,
-          force: isStopped ? 0 : 100,
-          direction: cmdName,
-          commandLabel: cmdName,
-        });
-        break;
-      }
-
-      case "INICIO_DEMO":
-        updateDemoStatusBadge("running", "En ejecución");
-        break;
-
-      case "MOVIMIENTO_DEMO": {
-        const cmdId = Number(payload.comando_id);
-        const cmdName = getCommandNameById(cmdId);
-        updateJoystickTelemetry({
-          angle: 0,
-          force: 100,
-          direction: cmdName,
-          commandLabel: `Demo: ${cmdName}`,
-        });
-        break;
-      }
-
-      case "FIN_DEMO":
-        updateDemoStatusBadge("idle", "Finalizada");
-        updateJoystickTelemetry({
-          angle: 0,
-          force: 0,
-          direction: "Detener",
-          commandLabel: "Detener",
-        });
-        break;
-
-      default:
-        break;
-    }
-
-    if (typeof this.onMessageCallback === "function") {
-      this.onMessageCallback(payload);
-    }
-  }
-
-  send(data) {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      const text = typeof data === "string" ? data : JSON.stringify(data);
-      this.socket.send(text);
-    }
-  }
-
-  startHeartbeat() {
-    this.stopHeartbeat();
-    this.heartbeatTimer = setInterval(() => {
-      this.send("PING");
-    }, WS_CONFIG.HEARTBEAT_INTERVAL_MS);
-  }
-
-  stopHeartbeat() {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
+    if (typeof this.onEventCallback === "function") {
+      this.onEventCallback(payload);
     }
   }
 
   scheduleReconnect() {
-    if (this.reconnectTimer || this.intentionallyClosed) return;
-
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectAttempts += 1;
-    const delay = Math.min(
-      WS_CONFIG.RECONNECT_BASE_MS * Math.pow(1.5, this.reconnectAttempts - 1),
-      WS_CONFIG.RECONNECT_MAX_MS
-    );
-
-    updateServiceStatus("ws", "connecting", "Reconectando");
+    const delay = Math.min(1500 * Math.pow(1.4, this.reconnectAttempts - 1), this.maxReconnectDelay);
 
     this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
+      setIndicatorState("ws", "checking", "Reconectando");
       this.connect();
     }, delay);
   }
 
-  clearTimers() {
-    this.stopHeartbeat();
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-  }
-
-  disconnect() {
-    this.intentionallyClosed = true;
-    this.clearTimers();
+  reconnectNow() {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.isManualClose = true;
     if (this.socket) {
-      this.socket.close(1000, "Cierre solicitado");
+      try {
+        this.socket.close();
+      } catch (_) {
+        // Ignorar
+      }
       this.socket = null;
     }
-    updateServiceStatus("ws", "disconnected", "Desconectado");
+    this.reconnectAttempts = 0;
+    this.connect();
   }
 }
