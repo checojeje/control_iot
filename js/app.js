@@ -20,7 +20,7 @@ import {
   updateDemoStatusBadge,
   renderDemoOptions,
   renderActionButtons,
-} from "./ui.js";
+} from "./ui.js?v=2";
 
 import {
   checkApiHealth,
@@ -30,16 +30,16 @@ import {
   fetchDemos,
   startDemo,
   cancelDemo,
-} from "./api.js";
+} from "./api.js?v=2";
 
-import { VehicleWebSocketClient } from "./ws.js";
+import { VehicleWebSocketClient } from "./ws.js?v=2";
 import {
   CircularJoystick,
   COMMAND_IDS,
   isValidCommandId,
   getCommandNameById,
   syncCommandIdsFromCatalog,
-} from "./joystick.js";
+} from "./joystick.js?v=2";
 
 let wsClient = null;
 let joystickController = null;
@@ -214,8 +214,14 @@ async function executeMovementCommand(
       setDispatchStateBadge("normal", "Listo");
     }, 900);
   } catch (error) {
-    // Si la petición fue cancelada porque llegó un comando más reciente o DETENER, no es un error de red
-    if (error && error.isSuperseded) {
+    // Si la petición fue reemplazada por un comando más reciente o DETENER, no es un error de red
+    if (
+      !error ||
+      error === "SUPERSEDED" ||
+      error.isSuperseded ||
+      error.name === "AbortError" ||
+      !error.message
+    ) {
       setActionButtonState(numericId, "normal");
       return;
     }

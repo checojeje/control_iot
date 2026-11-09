@@ -6,7 +6,7 @@
  * pérdida de foco/puntero (`lostpointercapture`, `blur`, `visibilitychange`) y evita POST repetitivos.
  */
 
-import { updateJoystickTelemetry } from "./ui.js";
+import { updateJoystickTelemetry } from "./ui.js?v=2";
 
 /**
  * Catálogo exacto de los 13 comandos del Vehículo #1 en AWS (`api-iot-sergio.duckdns.org`):

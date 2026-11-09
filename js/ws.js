@@ -11,8 +11,8 @@ import {
   appendEventLog,
   updateDemoStatusBadge,
   updateJoystickTelemetry,
-} from "./ui.js";
-import { COMMAND_IDS, getCommandNameById } from "./joystick.js";
+} from "./ui.js?v=2";
+import { COMMAND_IDS, getCommandNameById } from "./joystick.js?v=2";
 
 export const WS_CONFIG = {
   BASE_WSS_URL: "wss://api-iot-sergio.duckdns.org/ws/vehiculo/1",
