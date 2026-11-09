@@ -56,15 +56,15 @@ flowchart LR
 ```text
 control_iot/
 ├── assets/
+│   ├── css/
+│   │   └── style.css      # Estilos Mobile First, Joystick circular y estados de botones
+│   ├── js/
+│   │   ├── api.js         # Cliente Fetch REST con AbortController y diagnósticos de salud
+│   │   ├── app.js         # Orquestador principal y servicio único de despacho de comandos
+│   │   ├── joystick.js    # Controlador Pointer Events + Teclado + Catálogo de 13 comandos
+│   │   ├── ui.js          # Actualizadores seguros del DOM y de los 3 indicadores
+│   │   └── ws.js          # Cliente WebSocket WSS con reconexión automática
 │   └── favicon.svg        # Favicon vectorial propio del proyecto IoT
-├── css/
-│   └── style.css          # Estilos Mobile First, Joystick circular y estados de botones
-├── js/
-│   ├── api.js             # Cliente Fetch REST con AbortController y diagnósticos de salud
-│   ├── app.js             # Orquestador principal y servicio único de despacho de comandos
-│   ├── joystick.js        # Controlador Pointer Events + Teclado + Catálogo de 13 comandos
-│   ├── ui.js              # Actualizadores seguros del DOM y de los 3 indicadores
-│   └── ws.js              # Cliente WebSocket WSS con reconexión automática
 ├── index.html             # Interfaz principal de Control IoT
 └── README.md              # Documentación técnica, arquitectura y guía de pruebas
 ```
