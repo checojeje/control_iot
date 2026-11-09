@@ -2,7 +2,7 @@
  * MÓDULO CLIENTE API REST (js/api.js)
  * Centraliza las peticiones HTTP (GET / POST) hacia el backend FastAPI en AWS:
  * https://api-iot-sergio.duckdns.org
- * Incluye AbortController para evitar respuestas tardías y dar prioridad absoluta a DETENER.
+ * Incluye control de secuencia y AbortController para evitar respuestas tardías.
  */
 
 export const API_CONFIG = {
@@ -27,9 +27,6 @@ export const API_CONFIG = {
   TIMEOUT_MS: 8000,
 };
 
-// Controlador de solicitud de movimiento en vuelo para cancelar peticiones previas
-// cuando cambia la dirección rápidamente o se dispara DETENER con prioridad absoluta.
-let currentMovementAbortController = null;
 let currentDemoAbortController = null;
 
 /**
@@ -58,7 +55,12 @@ async function httpRequest(
   externalController = null
 ) {
   const controller = externalController || new AbortController();
-  const timer = setTimeout(() => controller.abort("TIMEOUT"), customTimeoutMs);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, customTimeoutMs);
+
   const url = buildUrl(path);
 
   const config = {
@@ -96,13 +98,16 @@ async function httpRequest(
     return data;
   } catch (error) {
     clearTimeout(timer);
-    if (error.name === "AbortError") {
-      if (controller.signal.reason === "SUPERSEDED") {
-        const supersededErr = new Error("Solicitud reemplazada por un comando más reciente.");
-        supersededErr.isSuperseded = true;
-        throw supersededErr;
-      }
+    if (timedOut) {
       throw new Error("Tiempo de espera agotado al contactar el servidor AWS.");
+    }
+    if (error && error.name === "AbortError") {
+      const supersededErr = new Error("Operación cancelada.");
+      supersededErr.isSuperseded = true;
+      throw supersededErr;
+    }
+    if (typeof error === "string") {
+      throw new Error(error);
     }
     throw error;
   }
@@ -118,14 +123,13 @@ export async function checkApiHealth() {
     const isValidOpenApi = Boolean(data && typeof data === "object" && data.paths);
     return { ok: isValidOpenApi, data };
   } catch (error) {
-    return { ok: false, error: error.message };
+    return { ok: false, error: error.message || String(error) };
   }
 }
 
 /**
  * 2. Diagnóstico seguro de Amazon RDS mediante la API:
  * GET https://api-iot-sergio.duckdns.org/api/vehiculos/1/estado
- * Ejecuta `sp_obtener_estado(1)` en el backend y comprueba que RDS responde con datos válidos.
  * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
  */
 export async function checkRdsHealth() {
@@ -134,7 +138,7 @@ export async function checkRdsHealth() {
     const isValidState = Boolean(data && typeof data === "object" && data.id_vehiculo);
     return { ok: isValidState, data };
   } catch (error) {
-    return { ok: false, error: error.message };
+    return { ok: false, error: error.message || String(error) };
   }
 }
 
@@ -150,10 +154,15 @@ export async function fetchCommands(vehiculoId = API_CONFIG.VEHICULO_ID) {
   return Array.isArray(data?.comandos) ? data.comandos : [];
 }
 
+// Cola secuencial ligera para que si el usuario mueve y suelta rápido el joystick
+// (ej. Avanzar -> Detener en milisegundos), Detener siempre se ejecute después de Avanzar
+// sin abortar falsamente la promesa de Avanzar.
+let movementQueuePromise = Promise.resolve();
+
 /**
  * 4. Enviar movimiento individual: POST https://api-iot-sergio.duckdns.org/api/vehiculos/movimiento
- * Cancela cualquier petición de movimiento anterior aún pendiente para evitar condiciones de carrera
- * y garantizar prioridad absoluta al comando Detener (ID: 13).
+ * Garantiza orden estricto de llegada al servidor (especialmente cuando Detener se dispara
+ * inmediatamente después de soltar el joystick).
  * @param {number} comandoId - ID numérico del comando (1 al 13).
  * @param {string} [origen='WEB_JOYSTICK'] - Origen de la petición.
  * @param {number} [vehiculoId=API_CONFIG.VEHICULO_ID]
@@ -169,32 +178,26 @@ export async function sendMovement(
     throw new Error(`ID de comando inválido: ${comandoId}`);
   }
 
-  // Si hay una solicitud anterior en vuelo, la abortamos para priorizar el nuevo comando
-  if (currentMovementAbortController) {
-    currentMovementAbortController.abort("SUPERSEDED");
-  }
-
-  currentMovementAbortController = new AbortController();
-
   const payload = {
     vehiculo_id: Number(vehiculoId),
     comando_id: numericCmd,
     origen: String(origen).slice(0, 50),
   };
 
-  try {
-    return await httpRequest(
+  const executePost = () =>
+    httpRequest(
       API_CONFIG.ROUTES.MOVIMIENTO,
       {
         method: "POST",
         body: JSON.stringify(payload),
       },
-      API_CONFIG.TIMEOUT_MS,
-      currentMovementAbortController
+      API_CONFIG.TIMEOUT_MS
     );
-  } finally {
-    currentMovementAbortController = null;
-  }
+
+  // Encadenamos la petición para que nunca haya condición de carrera entre un movimiento y su Detener
+  const nextTask = movementQueuePromise.then(executePost, executePost);
+  movementQueuePromise = nextTask.catch(() => {});
+  return await nextTask;
 }
 
 /**
@@ -255,7 +258,7 @@ export async function cancelDemo(
   vehiculoId = API_CONFIG.VEHICULO_ID
 ) {
   if (currentDemoAbortController) {
-    currentDemoAbortController.abort("SUPERSEDED");
+    currentDemoAbortController.abort();
     currentDemoAbortController = null;
   }
 
