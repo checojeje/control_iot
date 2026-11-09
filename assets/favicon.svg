@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </radialGradient>
+    <linearGradient id="knobGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+  </defs>
+  <!-- Base circular del controlador IoT -->
+  <circle cx="32" cy="32" r="30" fill="url(#bgGrad)" stroke="#0dcaf0" stroke-width="3"/>
+  <circle cx="32" cy="32" r="21" fill="none" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.5"/>
+  <!-- Flechas direccionales -->
+  <polygon points="32,6 28,12 36,12" fill="#38bdf8"/>
+  <polygon points="32,58 28,52 36,52" fill="#38bdf8"/>
+  <polygon points="6,32 12,28 12,36" fill="#38bdf8"/>
+  <polygon points="58,32 52,28 52,36" fill="#38bdf8"/>
+  <!-- Perilla central -->
+  <circle cx="32" cy="32" r="11" fill="url(#knobGrad)" stroke="#e0f2fe" stroke-width="2"/>
+  <circle cx="29" cy="29" r="3" fill="#ffffff" opacity="0.6"/>
+</svg>
