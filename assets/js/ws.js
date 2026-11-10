@@ -1,17 +1,20 @@
 /**
  * @file ws.js
- * @description Cliente WebSocket nativo con heartbeat y reconexión segura hacia AWS
+ * @description Cliente WebSocket (WSS) compartido por CONTROL y MONITOREO.
+ * Filtra eventos de otros vehículos, mantiene heartbeat y dispara resincronización tras reconexión.
  */
 
-import { CONFIG } from "./api.js?v=8";
-import { setIndicatorState } from "./ui.js?v=8";
+import { CONFIG } from "./api.js?v=1";
+import { setIndicatorState } from "./ui.js?v=1";
 
 export class VehicleWebSocket {
-  constructor({ onEventCallback, onOpenCallback }) {
+  constructor({ onEventCallback, onOpenCallback, onReconnectCallback }) {
     this.socket = null;
     this.onEventCallback = onEventCallback;
     this.onOpenCallback = onOpenCallback;
+    this.onReconnectCallback = onReconnectCallback;
     this.reconnectAttempts = 0;
+    this.hasConnectedBefore = false;
     this.maxReconnectDelay = 8000;
     this.reconnectTimer = null;
     this.heartbeatTimer = null;
@@ -48,28 +51,34 @@ export class VehicleWebSocket {
 
     currentSocket.addEventListener("open", () => {
       if (this.socket !== currentSocket) return;
+      const isReconnection = this.hasConnectedBefore || this.reconnectAttempts > 0;
+      this.hasConnectedBefore = true;
       this.reconnectAttempts = 0;
+
       setIndicatorState("ws", "online", "En línea");
       this.startHeartbeat();
+
       if (typeof this.onOpenCallback === "function") {
-        this.onOpenCallback();
+        this.onOpenCallback({ isReconnection });
+      }
+      if (isReconnection && typeof this.onReconnectCallback === "function") {
+        this.onReconnectCallback();
       }
     });
 
     currentSocket.addEventListener("message", (event) => {
       if (this.socket !== currentSocket) return;
-      // Cualquier trama recibida confirma que el canal WSS está en línea
       setIndicatorState("ws", "online", "En línea");
+
       try {
         const payload = JSON.parse(event.data);
         this.handleIncomingPayload(payload);
       } catch (_) {
-        // Ignorar tramas de texto no JSON
+        // Ignorar tramas no JSON
       }
     });
 
     currentSocket.addEventListener("close", () => {
-      // Ignorar eventos tardíos de un socket anterior ya reemplazado
       if (this.socket !== currentSocket) return;
       this.stopHeartbeat();
       this.socket = null;
@@ -81,7 +90,6 @@ export class VehicleWebSocket {
 
     currentSocket.addEventListener("error", () => {
       if (this.socket !== currentSocket) return;
-      // El evento close posterior gestionará la reconexión
     });
   }
 
@@ -114,6 +122,15 @@ export class VehicleWebSocket {
 
   handleIncomingPayload(payload) {
     if (!payload || typeof payload !== "object") return;
+
+    // Filtrar estrictamente eventos que pertenezcan a otro vehículo si vehiculo_id viene en el payload
+    if (
+      payload.vehiculo_id !== undefined &&
+      Number(payload.vehiculo_id) !== Number(CONFIG.VEHICULO_ID)
+    ) {
+      return;
+    }
+
     if (typeof this.onEventCallback === "function") {
       this.onEventCallback(payload);
     }

@@ -1,12 +1,14 @@
 /**
  * @file api.js
- * @description Cliente REST con Fetch y async/await para consumir los 21 servicios en AWS
+ * @description Cliente REST con Fetch y async/await para CONTROL (4.1) y MONITOREO (4.2)
+ * Consume los 21 servicios en AWS: https://api-iot-sergio.duckdns.org
  */
 
 export const CONFIG = {
   API_BASE_URL: "https://api-iot-sergio.duckdns.org",
   WS_URL: "wss://api-iot-sergio.duckdns.org/ws/vehiculo/1",
   VEHICULO_ID: 1,
+  MAX_HISTORY_ROWS: 10,
   TIMEOUT_MS: 10000,
 };
 
@@ -14,8 +16,8 @@ export const CONFIG = {
 let movementQueuePromise = Promise.resolve();
 
 /**
- * Realiza una petición HTTP con timeout controlado.
- * No envía Content-Type en peticiones GET para evitar preflights CORS innecesarios.
+ * Realiza una petición HTTP con timeout controlado y validación JSON.
+ * Evita enviar Content-Type en peticiones GET para no forzar preflights CORS innecesarios.
  */
 async function fetchWithTimeout(endpoint, options = {}, customSignal = null) {
   const controller = new AbortController();
@@ -78,7 +80,7 @@ async function fetchWithTimeout(endpoint, options = {}, customSignal = null) {
 
 /**
  * 1. Verifica disponibilidad del servidor AWS (21 APIs)
- * Comprueba /openapi.json o /api/vehiculos/1 (que devuelve id_vehiculo)
+ * GET /openapi.json
  */
 export async function checkApiHealth() {
   try {
@@ -92,7 +94,7 @@ export async function checkApiHealth() {
 
 /**
  * 2. Verifica disponibilidad de Amazon RDS consultando el estado real del vehículo
- * GET /api/vehiculos/1/estado -> devuelve { id_vehiculo: 1, vehiculo: "Excavadora IoT", id_comando: 13, comando: "Detener", ... }
+ * GET /api/vehiculos/1/estado -> { id_vehiculo: 1, vehiculo: "Excavadora IoT", id_comando: 13, comando: "Detener", codigo: 13, conectado: 1, fecha_actualizacion: "..." }
  */
 export async function checkRdsHealth() {
   try {
@@ -110,15 +112,46 @@ export async function checkRdsHealth() {
 
 /**
  * 3. Obtiene información del vehículo
- * GET /api/vehiculos/1 -> { id_vehiculo: 1, nombre: "Excavadora IoT", ... }
+ * GET /api/vehiculos/1
  */
 export async function fetchVehicleInfo() {
   return await fetchWithTimeout(`/api/vehiculos/${CONFIG.VEHICULO_ID}`);
 }
 
 /**
- * 4. Obtiene el catálogo real de comandos del vehículo y normaliza id_comando -> id
- * GET /api/vehiculos/1/comandos -> { vehiculo_id: 1, total: 13, comandos: [...] }
+ * 4. Obtiene el último estado reportado del vehículo en Amazon RDS
+ * GET /api/vehiculos/1/estado
+ */
+export async function fetchVehicleLastState(customSignal = null) {
+  return await fetchWithTimeout(
+    `/api/vehiculos/${CONFIG.VEHICULO_ID}/estado`,
+    { method: "GET" },
+    customSignal
+  );
+}
+
+/**
+ * 5. Obtiene el historial de los últimos 10 movimientos individuales persistidos en Amazon RDS
+ * GET /api/vehiculos/1/historial -> { vehiculo_id: 1, historial: [ { id_historial, id_vehiculo, comando, codigo, fecha_hora, origen }, ... ] }
+ */
+export async function fetchVehicleHistory(customSignal = null) {
+  const data = await fetchWithTimeout(
+    `/api/vehiculos/${CONFIG.VEHICULO_ID}/historial`,
+    { method: "GET" },
+    customSignal
+  );
+  const rawList = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.historial)
+      ? data.historial
+      : [];
+
+  return rawList;
+}
+
+/**
+ * 6. Obtiene el catálogo real de comandos del vehículo y normaliza id_comando -> id
+ * GET /api/vehiculos/1/comandos
  */
 export async function fetchVehicleCommands() {
   const data = await fetchWithTimeout(`/api/vehiculos/${CONFIG.VEHICULO_ID}/comandos`);
@@ -138,8 +171,8 @@ export async function fetchVehicleCommands() {
 }
 
 /**
- * 5. Obtiene las secuencias DEMO disponibles del vehículo y normaliza id_demo -> id
- * GET /api/vehiculos/1/demos -> { vehiculo_id: 1, total: 1, demos: [...] }
+ * 7. Obtiene las secuencias DEMO disponibles del vehículo
+ * GET /api/vehiculos/1/demos
  */
 export async function fetchDemos() {
   const data = await fetchWithTimeout(`/api/vehiculos/${CONFIG.VEHICULO_ID}/demos`);
@@ -158,8 +191,8 @@ export async function fetchDemos() {
 }
 
 /**
- * 6. Obtiene los movimientos de una DEMO específica
- * GET /api/demos/{demoId}/movimientos -> { demo_id: 1, total: N, movimientos: [...] }
+ * 8. Obtiene los movimientos de una DEMO específica
+ * GET /api/demos/{demoId}/movimientos
  */
 export async function fetchDemoMovements(demoId) {
   const data = await fetchWithTimeout(`/api/demos/${demoId}/movimientos`);
@@ -171,7 +204,7 @@ export async function fetchDemoMovements(demoId) {
 }
 
 /**
- * 7. Envía un movimiento individual al vehículo en orden secuencial
+ * 9. Envía un movimiento individual al vehículo en orden secuencial
  * POST /api/vehiculos/movimiento -> { vehiculo_id: 1, comando_id: 1..13, origen }
  */
 export async function sendMovement(comandoId, origen = "WEB_CONTROL") {
@@ -193,7 +226,7 @@ export async function sendMovement(comandoId, origen = "WEB_CONTROL") {
 }
 
 /**
- * 8. Inicia la ejecución de una secuencia DEMO en el backend (que transmite por WebSocket)
+ * 10. Inicia la ejecución de una secuencia DEMO en el backend
  * POST /api/vehiculos/demo -> { vehiculo_id: 1, demo_id: 1 }
  */
 export async function startDemoOnBackend(demoId) {

@@ -1,6 +1,7 @@
 /**
  * @file app.js
- * @description Orquestador principal de la aplicación de Control IoT (Joystick, Botones, DEMO, REST y WSS)
+ * @description Orquestador principal de la aplicación integrada CONTROL (4.1) + MONITOREO (4.2).
+ * Comparte una única conexión WebSocket (WSS) y el cliente REST hacia AWS y Amazon RDS.
  */
 
 import {
@@ -12,25 +13,29 @@ import {
   fetchDemoMovements,
   sendMovement,
   startDemoOnBackend,
-} from "./api.js?v=8";
+} from "./api.js?v=1";
 
 import {
+  switchActiveView,
+  notifyUnreadMonitoringEvent,
   setIndicatorState,
   showErrorBanner,
   hideErrorBanner,
   updateActiveCommandBadge,
-   updateJoystickTelemetry,
+  updateJoystickTelemetry,
   renderActionButtons,
   populateDemoSelect,
   setDemoProgressUI,
   setControlsDisabled,
   highlightActiveButton,
-} from "./ui.js?v=8";
+} from "./ui.js?v=1";
 
-import { VirtualJoystick } from "./joystick.js?v=8";
-import { VehicleWebSocket } from "./ws.js?v=8";
+import { VirtualJoystick } from "./joystick.js?v=1";
+import { VehicleWebSocket } from "./ws.js?v=1";
+import { MonitoringManager } from "./monitoring.js?v=1";
 
 const state = {
+  activeView: "control",
   commands: [],
   stopCommandId: 13,
   isDemoRunning: false,
@@ -38,58 +43,73 @@ const state = {
   demoSleepTimer: null,
   joystick: null,
   wsClient: null,
+  monitoring: null,
   hasVerifiedOnce: false,
 };
 
 const FALLBACK_CATALOG = [
-  { id: 1, codigo: "AVANZAR", nombre: "Avanzar", activo: true },
-  { id: 2, codigo: "RETROCEDER", nombre: "Retroceder", activo: true },
-  { id: 3, codigo: "CABINA_IZQ", nombre: "Cabina Izquierda", activo: true },
-  { id: 4, codigo: "CABINA_DER", nombre: "Cabina Derecha", activo: true },
-  { id: 5, codigo: "GIRAR_DER", nombre: "Girar Derecha", activo: true },
-  { id: 6, codigo: "GIRAR_IZQ", nombre: "Girar Izquierda", activo: true },
-  { id: 7, codigo: "BAJAR_GARRA", nombre: "Bajar Garra", activo: true },
-  { id: 8, codigo: "SUBIR_GARRA", nombre: "Subir Garra", activo: true },
-  { id: 9, codigo: "LUZ", nombre: "Luz", activo: true },
-  { id: 10, codigo: "SONIDO", nombre: "Sonido", activo: true },
-  { id: 11, codigo: "VELOCIDAD", nombre: "Velocidad", activo: true },
-  { id: 12, codigo: "DEMO", nombre: "Demo", activo: true },
-  { id: 13, codigo: "DETENER", nombre: "Detener", activo: true },
+  { id: 1, codigo: "1", nombre: "Avanzar", activo: true },
+  { id: 2, codigo: "2", nombre: "Retroceder", activo: true },
+  { id: 3, codigo: "3", nombre: "Cabina Izquierda", activo: true },
+  { id: 4, codigo: "4", nombre: "Cabina Derecha", activo: true },
+  { id: 5, codigo: "5", nombre: "Girar Derecha", activo: true },
+  { id: 6, codigo: "6", nombre: "Girar Izquierda", activo: true },
+  { id: 7, codigo: "7", nombre: "Bajar Garra", activo: true },
+  { id: 8, codigo: "8", nombre: "Subir Garra", activo: true },
+  { id: 9, codigo: "9", nombre: "Luz", activo: true },
+  { id: 10, codigo: "10", nombre: "Sonido", activo: true },
+  { id: 11, codigo: "11", nombre: "Velocidad", activo: true },
+  { id: 12, codigo: "12", nombre: "Demo", activo: true },
+  { id: 13, codigo: "13", nombre: "Detener", activo: true },
 ];
 
 /**
- * Inicialización inmediata al cargar el DOM
+ * Inicialización al cargar el DOM
  */
 document.addEventListener("DOMContentLoaded", async () => {
-  initUIEventListeners();
+  initNavigationAndButtons();
   initJoystickControl();
   applyCommandCatalog(FALLBACK_CATALOG);
 
-  // Conectar WebSocket y verificar API + RDS de inmediato en paralelo
-  initWebSocketChannel();
-  initMobileLifecycleListeners();
+  // Inicializar módulo de MONITOREO (4.2)
+  state.monitoring = new MonitoringManager({
+    getCommandNameById: (id) => getCommandNameById(id),
+    onSyncStatusChange: ({ ok }) => {
+      if (ok) {
+        setIndicatorState("api", "online", "Disponible");
+        setIndicatorState("rds", "online", "Disponible");
+      }
+    },
+  });
 
+  // Iniciar conexión WSS única compartida entre CONTROL y MONITOREO
+  initSharedWebSocketChannel();
+  initLifecycleListeners();
+
+  // Carga inicial paralela: Salud AWS/RDS + Catálogo CONTROL + Estado e Historial MONITOREO
   await Promise.all([
     verifyBackendAndDatabaseHealth(false),
     loadCatalogAndDemos(),
+    state.monitoring.syncFromBackend({ reason: "CARGA_INICIAL", silent: false }),
   ]);
 
-  // Verificación periódica silenciosa cada 20 segundos
+  // Verificación periódica moderada de disponibilidad API/RDS (sin reemplazar WSS para el historial)
   setInterval(() => {
     verifyBackendAndDatabaseHealth(true);
-  }, 20000);
+  }, 25000);
 });
 
 /**
- * Reconecta automáticamente en teléfonos móviles o al volver a la pestaña
+ * Reconexión y resincronización al recuperar red o volver a la pestaña
  */
-function initMobileLifecycleListeners() {
+function initLifecycleListeners() {
   window.addEventListener("online", () => {
     hideErrorBanner();
     if (!state.wsClient?.socket || state.wsClient.socket.readyState !== WebSocket.OPEN) {
       state.wsClient?.connect();
     }
     verifyBackendAndDatabaseHealth(true);
+    state.monitoring?.syncFromBackend({ reason: "RECUPERACION_RED", silent: true });
   });
 
   document.addEventListener("visibilitychange", () => {
@@ -98,14 +118,34 @@ function initMobileLifecycleListeners() {
         state.wsClient?.connect();
       }
       verifyBackendAndDatabaseHealth(true);
+      state.monitoring?.syncFromBackend({ reason: "CAMBIO_VISIBILIDAD", silent: true });
     }
   });
 }
 
 /**
- * Registra eventos de botones fijos (DETENER, DEMO, Sincronizar)
+ * Configura las pestañas CONTROL / MONITOREO y los botones principales
  */
-function initUIEventListeners() {
+function initNavigationAndButtons() {
+  const tabControl = document.getElementById("tab-btn-control");
+  const tabMonitoreo = document.getElementById("tab-btn-monitoreo");
+
+  if (tabControl) {
+    tabControl.addEventListener("click", () => {
+      state.activeView = "control";
+      switchActiveView("control");
+    });
+  }
+
+  if (tabMonitoreo) {
+    tabMonitoreo.addEventListener("click", () => {
+      state.activeView = "monitoreo";
+      switchActiveView("monitoreo");
+      // Resincronizar estado e historial al entrar en MONITOREO para garantizar consistencia
+      state.monitoring?.syncFromBackend({ reason: "ABRIR_MONITOREO", silent: true });
+    });
+  }
+
   const btnCloseError = document.getElementById("btn-close-error");
   if (btnCloseError) {
     btnCloseError.addEventListener("click", () => hideErrorBanner());
@@ -120,8 +160,11 @@ function initUIEventListeners() {
       } else {
         setIndicatorState("ws", "online", "En línea");
       }
-      await verifyBackendAndDatabaseHealth(false);
-      await loadCatalogAndDemos();
+      await Promise.all([
+        verifyBackendAndDatabaseHealth(false),
+        loadCatalogAndDemos(),
+        state.monitoring?.syncFromBackend({ reason: "BOTON_SINCRONIZAR", silent: false }),
+      ]);
     });
   }
 
@@ -173,9 +216,6 @@ function initJoystickControl() {
   });
 }
 
-/**
- * Obtiene el nombre legible de un comando a partir de su ID
- */
 function getCommandNameById(comandoId) {
   const numericId = Number(comandoId);
   const found =
@@ -185,12 +225,16 @@ function getCommandNameById(comandoId) {
 }
 
 /**
- * Inicia el canal WebSocket hacia AWS
+ * Inicia el canal WebSocket único compartido entre CONTROL y MONITOREO
  */
-function initWebSocketChannel() {
+function initSharedWebSocketChannel() {
   state.wsClient = new VehicleWebSocket({
     onOpenCallback: () => {
       setIndicatorState("ws", "online", "En línea");
+    },
+    onReconnectCallback: () => {
+      // Regla 7.4: Al recuperar conexión WSS, volver a consultar estado y los 10 movimientos desde la API
+      state.monitoring?.syncFromBackend({ reason: "RECONEXION_WSS", silent: true });
     },
     onEventCallback: (payload) => {
       const evento = String(payload.evento || "");
@@ -200,6 +244,14 @@ function initWebSocketChannel() {
         return;
       }
 
+      // Actualizar vista MONITOREO en tiempo real ante cualquier evento del vehículo
+      state.monitoring?.handleRealtimeWsEvent(payload);
+
+      if (state.activeView !== "monitoreo") {
+        notifyUnreadMonitoringEvent();
+      }
+
+      // Actualizar indicadores de la vista CONTROL
       if (evento === "NUEVO_MOVIMIENTO") {
         const cmdId = Number(payload.comando_id ?? payload.datos?.comando_id);
         const nombreCmd = payload.datos?.comando || getCommandNameById(cmdId);
@@ -244,7 +296,7 @@ function initWebSocketChannel() {
 }
 
 /**
- * Comprueba en paralelo el estado de los indicadores: API AWS (21 servicios) y Amazon RDS
+ * Comprueba de forma independiente la salud de API AWS (21 servicios) y el diagnóstico de Amazon RDS
  */
 async function verifyBackendAndDatabaseHealth(silent = false) {
   if (!silent && !state.hasVerifiedOnce) {
@@ -252,8 +304,6 @@ async function verifyBackendAndDatabaseHealth(silent = false) {
     setIndicatorState("rds", "checking", "Sin verificar");
   }
 
-  // Consultar el estado en RDS primero o en paralelo: si /api/vehiculos/1/estado responde,
-  // confirma tanto que el servidor FastAPI en AWS como Amazon RDS están en línea.
   const [rdsResult, apiResult] = await Promise.all([
     checkRdsHealth(),
     checkApiHealth(),
@@ -313,7 +363,7 @@ async function loadCatalogAndDemos() {
       setIndicatorState("rds", "online", "Disponible");
     }
   } catch (_) {
-    // Mantener catálogo base ya renderizado
+    // Mantener catálogo base
   }
 
   try {
@@ -378,7 +428,7 @@ function applyCommandCatalog(commands) {
 }
 
 /**
- * Envía un comando de movimiento individual al backend
+ * Envía un comando de movimiento individual al backend y dispara reconciliación en MONITOREO
  */
 async function dispatchVehicleCommand(comandoId, nombreComando, origen = "WEB_CONTROL") {
   hideErrorBanner();
@@ -391,6 +441,8 @@ async function dispatchVehicleCommand(comandoId, nombreComando, origen = "WEB_CO
     await sendMovement(comandoId, origen);
     setIndicatorState("api", "online", "Disponible");
     setIndicatorState("rds", "online", "Disponible");
+    // Reconciliar estado e historial confirmado en RDS
+    state.monitoring?.scheduleRestReconciliation("COMANDO_LOCAL_CONFIRMADO");
   } catch (err) {
     const msg = err?.message || "";
     if (!msg || msg === "SUPERSEDED" || msg === "undefined") {
@@ -427,7 +479,7 @@ async function executePriorityStop(motivo = "DETENCIÓN PRIORITARIA") {
 }
 
 /**
- * Ejecuta una secuencia DEMO en el backend (/api/vehiculos/demo) y muestra progreso visual
+ * Ejecuta una secuencia DEMO en el backend (/api/vehiculos/demo) sin contaminar el historial individual
  */
 async function runDemoSequence(demoId) {
   if (state.isDemoRunning) {
@@ -448,7 +500,6 @@ async function runDemoSequence(demoId) {
   });
 
   try {
-    // Dispara la ejecución real en el backend (/api/vehiculos/demo) en paralelo con el progreso visual
     const backendDemoPromise = startDemoOnBackend(demoId);
     const steps = await fetchDemoMovements(demoId).catch(() => []);
 
@@ -488,6 +539,7 @@ async function runDemoSequence(demoId) {
 
     if (!state.demoCancelRequested) {
       updateActiveCommandBadge("Detener", true);
+      state.monitoring?.scheduleRestReconciliation("FIN_DEMO_CONFIRMADO");
     }
   } catch (err) {
     if (!state.demoCancelRequested) {
@@ -502,9 +554,6 @@ async function runDemoSequence(demoId) {
   }
 }
 
-/**
- * Promesa de espera cancelable inmediatamente por executePriorityStop
- */
 function waitInterruptible(ms) {
   return new Promise((resolve) => {
     state.demoSleepTimer = setTimeout(() => {

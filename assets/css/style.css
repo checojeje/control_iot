@@ -1,6 +1,7 @@
 /**
  * @file style.css
  * @description Diseño Industrial Cockpit de Alto Impacto · Cero Scroll (PC, Celular Vertical y Celular Horizontal)
+ * Incluye Vistas Integradas: CONTROL (Práctica 4.1) + MONITOREO EN TIEMPO REAL (Práctica 4.2)
  */
 
 :root {
@@ -65,17 +66,18 @@ body {
 }
 
 /* ==========================================================================
-   1. BARRA SUPERIOR
+   1. BARRA SUPERIOR Y PESTAÑAS DE NAVEGACIÓN (CONTROL / MONITOREO)
    ========================================================================== */
 .app-topbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   background: linear-gradient(90deg, rgba(15, 23, 42, 0.95), rgba(20, 31, 56, 0.9));
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
-  padding: 8px 16px;
+  padding: 7px 16px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
@@ -105,7 +107,7 @@ body {
 }
 
 .vehicle-name {
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   font-weight: 800;
   letter-spacing: 0.7px;
   margin: 0;
@@ -116,9 +118,67 @@ body {
 }
 
 .vehicle-subtitle {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   font-weight: 500;
+}
+
+/* SELECTOR SEGMENTADO: CONTROL vs MONITOREO */
+.view-nav-tabs {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(6, 10, 18, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.view-tab-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 6px 16px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.view-tab-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.view-tab-btn:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.view-tab-btn.active {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.22), rgba(59, 130, 246, 0.28));
+  border-color: rgba(0, 229, 255, 0.5);
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.24);
+}
+
+.view-tab-btn.active i {
+  color: var(--accent-cyan);
+}
+
+.tab-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-emerald);
+  box-shadow: 0 0 10px var(--accent-emerald);
+  animation: pulseDot 1s infinite ease-in-out;
 }
 
 .btn-reconnect {
@@ -324,7 +384,7 @@ body {
 }
 
 /* ==========================================================================
-   3. GRID PRINCIPAL DE LA CABINA (ESCRITORIO / PC)
+   3. GRID PRINCIPAL DE LA CABINA (VISTA CONTROL)
    ========================================================================== */
 .cockpit-grid {
   flex: 1 1 0;
@@ -428,14 +488,27 @@ body {
   border: 1px solid rgba(148, 163, 184, 0.24);
 }
 
-.panel-tag.running {
+.panel-tag.running,
+.panel-tag.sync-syncing {
   background: rgba(0, 229, 255, 0.2);
   color: #67e8f9;
   border-color: rgba(0, 229, 255, 0.45);
 }
 
+.panel-tag.sync-synced {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.panel-tag.sync-error {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
 /* ==========================================================================
-   4. TARJETA IZQUIERDA: JOYSTICK + TELEMETRÍA + DETENER
+   4. TARJETA IZQUIERDA CONTROL: JOYSTICK + TELEMETRÍA + DETENER
    ========================================================================== */
 .card-joystick {
   height: 100%;
@@ -689,7 +762,7 @@ body {
 }
 
 /* ==========================================================================
-   5. COLUMNA DERECHA: FUNCIONES DEL VEHÍCULO (CERO ESPACIOS VACÍOS)
+   5. COLUMNA DERECHA CONTROL: FUNCIONES DEL VEHÍCULO + DEMO
    ========================================================================== */
 .card-actions {
   flex: 1.65 1 0;
@@ -769,7 +842,6 @@ body {
   text-overflow: ellipsis;
 }
 
-/* Variantes de color por función */
 .btn-action-cmd.action-cyan {
   border-color: rgba(0, 229, 255, 0.3);
   background: linear-gradient(145deg, rgba(8, 47, 73, 0.5), rgba(15, 23, 42, 0.92));
@@ -856,9 +928,7 @@ body {
   cursor: not-allowed;
 }
 
-/* ==========================================================================
-   6. TARJETA MODO DEMO
-   ========================================================================== */
+/* TARJETA MODO DEMO */
 .card-demo {
   flex: 1 1 0;
 }
@@ -993,6 +1063,384 @@ body {
 }
 
 /* ==========================================================================
+   6. VISTA MONITOREO EN TIEMPO REAL (PRÁCTICA 4.2)
+   ========================================================================== */
+.monitoring-grid {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 4.5fr 7.5fr;
+  gap: 12px;
+}
+
+.card-last-movement,
+.card-history-table {
+  height: 100%;
+}
+
+.mon-source-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.mon-source-pill.persisted {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.mon-source-pill.wss-live {
+  background: rgba(0, 229, 255, 0.22);
+  color: #67e8f9;
+  border: 1px solid rgba(0, 229, 255, 0.5);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.28);
+}
+
+.mon-source-pill.demo-step {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+}
+
+.mon-source-pill.warning {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.mon-hero-body {
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mon-hero-display {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 20px;
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 18% 50%, rgba(0, 229, 255, 0.14), rgba(9, 14, 26, 0.88) 70%);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.mon-hero-display.pulse-update {
+  animation: heroFlash 0.6s ease-out;
+}
+
+@keyframes heroFlash {
+  0% {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 28px rgba(0, 229, 255, 0.35);
+  }
+  100% {
+    border-color: rgba(56, 189, 248, 0.28);
+    box-shadow: none;
+  }
+}
+
+.mon-hero-icon {
+  width: 74px;
+  height: 74px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  flex-shrink: 0;
+}
+
+.tone-cyan {
+  background: rgba(0, 229, 255, 0.16);
+  color: #22d3ee;
+  border: 1px solid rgba(0, 229, 255, 0.42);
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.2);
+}
+
+.tone-amber {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.2);
+}
+
+.tone-emerald {
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.42);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.2);
+}
+
+.tone-purple {
+  background: rgba(168, 85, 247, 0.16);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.42);
+}
+
+.tone-blue {
+  background: rgba(59, 130, 246, 0.16);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.42);
+}
+
+.tone-red {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.22);
+}
+
+.mon-hero-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.mon-hero-overline {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  color: var(--text-muted);
+}
+
+.mon-hero-title {
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  font-weight: 800;
+  margin: 0;
+  color: #ffffff;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mon-hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.mon-code-pill {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 6px;
+  background: rgba(0, 229, 255, 0.14);
+  color: #67e8f9;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+}
+
+.mon-origin-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.mon-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mon-meta-item {
+  background: rgba(9, 14, 26, 0.84);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mon-meta-wide {
+  grid-column: span 2;
+}
+
+.mon-meta-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+
+.mon-meta-value {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.mon-disclaimer-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 11px;
+  padding: 9px 12px;
+  font-size: 0.71rem;
+  line-height: 1.35;
+  color: #cbd5e1;
+}
+
+/* TABLA DE LOS 10 MOVIMIENTOS MÁS RECIENTES */
+.mon-table-wrapper {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 12px 10px;
+}
+
+.mon-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 5px;
+  font-size: 0.82rem;
+}
+
+.mon-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(15, 23, 42, 0.98);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.mon-table tbody tr {
+  background: rgba(9, 14, 26, 0.76);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.mon-table tbody tr:hover {
+  background: rgba(30, 41, 59, 0.88);
+}
+
+.mon-table tbody tr.mon-row-latest {
+  background: linear-gradient(90deg, rgba(0, 229, 255, 0.13), rgba(15, 23, 42, 0.88));
+}
+
+.mon-table tbody td {
+  padding: 6px 10px;
+  vertical-align: middle;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.mon-table tbody td:first-child {
+  border-left: 1px solid rgba(148, 163, 184, 0.14);
+  border-top-left-radius: 9px;
+  border-bottom-left-radius: 9px;
+}
+
+.mon-table tbody td:last-child {
+  border-right: 1px solid rgba(148, 163, 184, 0.14);
+  border-top-right-radius: 9px;
+  border-bottom-right-radius: 9px;
+}
+
+.col-num {
+  width: 42px;
+  text-align: center;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.mon-row-latest .col-num {
+  color: var(--accent-cyan);
+}
+
+.mon-move-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mon-row-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.88rem;
+  flex-shrink: 0;
+}
+
+.mon-move-texts {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.mon-move-name {
+  font-weight: 700;
+  color: #f8fafc;
+  font-size: 0.82rem;
+}
+
+.mon-move-code {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-family: "JetBrains Mono", monospace;
+}
+
+.mon-origin-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.col-date,
+.col-time {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.col-date {
+  color: #cbd5e1;
+}
+
+.col-time {
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.mon-table-empty {
+  text-align: center;
+  padding: 28px 12px !important;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ==========================================================================
    7. PIE DE PÁGINA OBLIGATORIO
    ========================================================================== */
 .app-footer {
@@ -1006,8 +1454,6 @@ body {
 
 /* ==========================================================================
    MODO CELULAR VERTICAL / PORTRAIT (max-width: 767.98px)
-   Corrige el colapso de flex-basis: 0 para que las 3 tarjetas (Dirección,
-   Funciones del Vehículo y Modo DEMO) se vean completas y proporcionadas.
    ========================================================================== */
 @media (max-width: 767.98px) and (orientation: portrait) {
   .app-viewport {
@@ -1016,28 +1462,44 @@ body {
   }
 
   .app-topbar {
-    padding: 6px 10px;
+    padding: 5px 8px;
     border-radius: 11px;
+    gap: 6px;
   }
 
   .brand-emblem {
-    width: 30px;
-    height: 30px;
-    font-size: 0.95rem;
-    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    font-size: 0.9rem;
+    border-radius: 7px;
   }
 
   .vehicle-name {
-    font-size: 0.88rem;
+    font-size: 0.78rem;
   }
 
   .vehicle-subtitle {
     display: none;
   }
 
+  .view-nav-tabs {
+    padding: 2px;
+    border-radius: 9px;
+  }
+
+  .view-tab-btn {
+    padding: 4px 9px;
+    font-size: 0.68rem;
+    gap: 4px;
+  }
+
   .btn-reconnect {
-    padding: 4px 10px;
-    font-size: 0.72rem;
+    padding: 4px 8px;
+    font-size: 0.68rem;
+  }
+
+  .btn-reconnect-text {
+    display: none;
   }
 
   /* 3 indicadores compactos */
@@ -1076,7 +1538,7 @@ body {
     height: 6px;
   }
 
-  /* Columna única con alturas proporcionales exactas */
+  /* Vista CONTROL en celular vertical */
   .cockpit-grid {
     flex: 1 1 0;
     min-height: 0;
@@ -1090,24 +1552,23 @@ body {
   }
 
   .card-title-group {
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     gap: 6px;
   }
 
   .header-icon-chip {
-    width: 21px;
-    height: 21px;
-    font-size: 0.7rem;
-    border-radius: 6px;
+    width: 20px;
+    height: 20px;
+    font-size: 0.68rem;
+    border-radius: 5px;
   }
 
   .command-pill,
   .panel-tag {
-    font-size: 0.64rem;
-    padding: 2px 8px;
+    font-size: 0.62rem;
+    padding: 2px 7px;
   }
 
-  /* 1. TARJETA DE DIRECCIÓN: altura automática fija para no colapsarse nunca */
   .card-joystick {
     flex: 0 0 auto;
     height: auto;
@@ -1192,7 +1653,6 @@ body {
     display: none;
   }
 
-  /* 2. FUNCIONES + DEMO ocupan el espacio restante sin colapsar */
   .right-column-stack {
     flex: 1 1 0;
     min-height: 0;
@@ -1233,7 +1693,6 @@ body {
     font-size: 0.58rem;
   }
 
-  /* 3. MODO DEMO: selector a la izquierda + botones a la derecha o 2 filas con altura garantizada */
   .card-demo {
     flex: 0 0 auto;
     height: auto;
@@ -1276,6 +1735,129 @@ body {
     border-radius: 8px;
   }
 
+  /* Vista MONITOREO en celular vertical */
+  .monitoring-grid {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .card-last-movement {
+    flex: 0 0 auto;
+    height: auto;
+  }
+
+  .mon-hero-body {
+    flex: 0 0 auto;
+    height: auto;
+    padding: 8px 10px;
+    gap: 7px;
+  }
+
+  .mon-hero-display {
+    flex: 0 0 auto;
+    padding: 10px 12px;
+    gap: 12px;
+    border-radius: 11px;
+  }
+
+  .mon-hero-icon {
+    width: 46px;
+    height: 46px;
+    font-size: 1.4rem;
+    border-radius: 12px;
+  }
+
+  .mon-hero-overline {
+    font-size: 0.56rem;
+  }
+
+  .mon-hero-title {
+    font-size: 1.1rem;
+  }
+
+  .mon-code-pill,
+  .mon-origin-pill {
+    font-size: 0.64rem;
+  }
+
+  .mon-meta-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .mon-meta-item {
+    padding: 5px 7px;
+    border-radius: 8px;
+  }
+
+  .mon-meta-wide {
+    grid-column: span 1;
+  }
+
+  .mon-meta-label {
+    font-size: 0.52rem;
+  }
+
+  .mon-meta-value {
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mon-disclaimer-box {
+    display: none;
+  }
+
+  .card-history-table {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .mon-table-wrapper {
+    padding: 4px 8px 6px;
+  }
+
+  .mon-table {
+    border-spacing: 0 3px;
+    font-size: 0.72rem;
+  }
+
+  .mon-table thead th {
+    padding: 4px 6px;
+    font-size: 0.6rem;
+  }
+
+  .mon-table tbody td {
+    padding: 4px 6px;
+  }
+
+  .col-origin {
+    display: none;
+  }
+
+  .mon-row-icon {
+    width: 22px;
+    height: 22px;
+    font-size: 0.74rem;
+  }
+
+  .mon-move-name {
+    font-size: 0.73rem;
+  }
+
+  .mon-move-code {
+    font-size: 0.58rem;
+  }
+
+  .col-date,
+  .col-time {
+    font-size: 0.68rem;
+  }
+
   .app-footer {
     font-size: 0.62rem;
     padding: 0;
@@ -1284,7 +1866,6 @@ body {
 
 /* ==========================================================================
    MODO CELULAR HORIZONTAL / LANDSCAPE (max-height: 540px)
-   Corrige textos truncados en botones y asegura que Modo DEMO no se recorte.
    ========================================================================== */
 @media (max-height: 540px) and (orientation: landscape) {
   .app-viewport {
@@ -1312,13 +1893,22 @@ body {
     display: none;
   }
 
+  .view-nav-tabs {
+    padding: 2px;
+    border-radius: 8px;
+  }
+
+  .view-tab-btn {
+    padding: 3px 10px;
+    font-size: 0.66rem;
+  }
+
   .btn-reconnect {
     padding: 2px 8px;
     font-size: 0.66rem;
     border-radius: 7px;
   }
 
-  /* Franja de 3 indicadores compacta */
   .status-strip {
     gap: 6px;
   }
@@ -1345,7 +1935,7 @@ body {
     padding: 1px 6px;
   }
 
-  /* 2 columnas equilibradas */
+  /* Vista CONTROL en horizontal */
   .cockpit-grid {
     flex: 1 1 0;
     min-height: 0;
@@ -1376,12 +1966,12 @@ body {
   }
 
   .command-pill,
-  .panel-tag {
+  .panel-tag,
+  .mon-source-pill {
     font-size: 0.58rem;
     padding: 1px 7px;
   }
 
-  /* Izquierda: Joystick centrado en su arena + Telemetría y DETENER estirados a la par */
   .joystick-cockpit-body {
     flex: 1 1 0;
     min-height: 0;
@@ -1463,7 +2053,6 @@ body {
     display: none;
   }
 
-  /* Derecha Arriba: 7 botones con ícono arriba y texto completo abajo (sin recortar texto) */
   .card-actions {
     flex: 1 1 0;
     min-height: 0;
@@ -1514,7 +2103,6 @@ body {
     display: none;
   }
 
-  /* Derecha Abajo: Modo DEMO con altura fija garantizada para que nunca se corte */
   .card-demo {
     flex: 0 0 auto;
     height: auto;
@@ -1564,6 +2152,91 @@ body {
     height: 28px;
     padding: 2px 8px;
     border-radius: 7px;
+  }
+
+  /* Vista MONITOREO en horizontal */
+  .monitoring-grid {
+    grid-template-columns: 40% 60%;
+    gap: 6px;
+  }
+
+  .mon-hero-body {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .mon-hero-display {
+    padding: 8px 10px;
+    gap: 10px;
+  }
+
+  .mon-hero-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.3rem;
+    border-radius: 10px;
+  }
+
+  .mon-hero-overline {
+    font-size: 0.52rem;
+  }
+
+  .mon-hero-title {
+    font-size: 1rem;
+  }
+
+  .mon-code-pill,
+  .mon-origin-pill {
+    font-size: 0.6rem;
+  }
+
+  .mon-meta-grid {
+    gap: 5px;
+  }
+
+  .mon-meta-item {
+    padding: 4px 8px;
+    border-radius: 7px;
+  }
+
+  .mon-meta-label {
+    font-size: 0.5rem;
+  }
+
+  .mon-meta-value {
+    font-size: 0.7rem;
+  }
+
+  .mon-disclaimer-box {
+    display: none;
+  }
+
+  .mon-table-wrapper {
+    padding: 4px 8px;
+  }
+
+  .mon-table {
+    border-spacing: 0 2px;
+    font-size: 0.68rem;
+  }
+
+  .mon-table thead th,
+  .mon-table tbody td {
+    padding: 2px 6px;
+  }
+
+  .mon-row-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 0.68rem;
+  }
+
+  .mon-move-name {
+    font-size: 0.68rem;
+  }
+
+  .mon-move-code {
+    display: none;
   }
 
   .app-footer {

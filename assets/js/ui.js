@@ -1,6 +1,7 @@
 /**
  * @file ui.js
- * @description Gestión visual de indicadores, controles táctiles y estado de la interfaz
+ * @description Gestión visual de navegación (CONTROL / MONITOREO), 3 indicadores,
+ * botones táctiles del catálogo y progreso de secuencias DEMO.
  */
 
 const ICON_MAP = {
@@ -12,6 +13,49 @@ const ICON_MAP = {
   SONIDO: { icon: "bi-volume-up-fill", variant: "action-purple", category: "Alerta acústica" },
   VELOCIDAD: { icon: "bi-speedometer2", variant: "action-blue", category: "Potencia motor" },
 };
+
+/**
+ * Alterna entre la vista CONTROL y la vista MONITOREO sin recargar la página
+ * @param {'control'|'monitoreo'} viewName
+ */
+export function switchActiveView(viewName) {
+  const viewControl = document.getElementById("view-control");
+  const viewMonitoreo = document.getElementById("view-monitoreo");
+  const btnControl = document.getElementById("tab-btn-control");
+  const btnMonitoreo = document.getElementById("tab-btn-monitoreo");
+  const unreadDot = document.getElementById("mon-unread-dot");
+
+  const isMonitoreo = viewName === "monitoreo";
+
+  if (viewControl) {
+    viewControl.classList.toggle("d-none", isMonitoreo);
+  }
+  if (viewMonitoreo) {
+    viewMonitoreo.classList.toggle("d-none", !isMonitoreo);
+  }
+  if (btnControl) {
+    btnControl.classList.toggle("active", !isMonitoreo);
+    btnControl.setAttribute("aria-selected", String(!isMonitoreo));
+  }
+  if (btnMonitoreo) {
+    btnMonitoreo.classList.toggle("active", isMonitoreo);
+    btnMonitoreo.setAttribute("aria-selected", String(isMonitoreo));
+  }
+  if (isMonitoreo && unreadDot) {
+    unreadDot.classList.add("d-none");
+  }
+}
+
+/**
+ * Muestra un punto luminoso en la pestaña MONITOREO cuando llega un evento mientras se está en CONTROL
+ */
+export function notifyUnreadMonitoringEvent() {
+  const viewMonitoreo = document.getElementById("view-monitoreo");
+  const unreadDot = document.getElementById("mon-unread-dot");
+  if (viewMonitoreo && viewMonitoreo.classList.contains("d-none") && unreadDot) {
+    unreadDot.classList.remove("d-none");
+  }
+}
 
 /**
  * Actualiza uno de los 3 indicadores superiores:
@@ -60,7 +104,7 @@ export function hideErrorBanner() {
 }
 
 /**
- * Actualiza el indicador del comando actual sin mostrar IDs internos
+ * Actualiza el indicador del comando actual en CONTROL
  */
 export function updateActiveCommandBadge(commandName, isStop = false) {
   const badge = document.getElementById("active-command-badge");
@@ -108,7 +152,6 @@ export function renderActionButtons(commands, onCommandClick) {
 
   commands.forEach((cmd, idx) => {
     const meta = resolveCommandMeta(cmd);
-    // Primeros 4 botones (Cabina y Garra) ocupan mitad en vertical/PC y cuarto en landscape; los últimos 3 (Luz, Sonido, Velocidad) ocupan un tercio
     const spanClass = idx < 4 ? "tile-half" : "tile-third";
 
     const btn = document.createElement("button");
@@ -219,10 +262,10 @@ export function setControlsDisabled(disabled) {
 }
 
 function resolveCommandMeta(cmd) {
-  const code = (cmd.codigo || "").toUpperCase();
+  const code = String(cmd.codigo || "").toUpperCase();
   if (ICON_MAP[code]) return ICON_MAP[code];
 
-  const name = (cmd.nombre || "").toLowerCase();
+  const name = String(cmd.nombre || "").toLowerCase();
   if (name.includes("cabina") && name.includes("izq")) return ICON_MAP.CABINA_IZQ;
   if (name.includes("cabina") && name.includes("der")) return ICON_MAP.CABINA_DER;
   if (name.includes("bajar")) return ICON_MAP.BAJAR_GARRA;
@@ -231,7 +274,7 @@ function resolveCommandMeta(cmd) {
   if (name.includes("sonido") || name.includes("claxon")) return ICON_MAP.SONIDO;
   if (name.includes("velocidad")) return ICON_MAP.VELOCIDAD;
 
-  return { icon: "bi-Sliders", variant: "action-cyan", category: "Operación" };
+  return { icon: "bi-sliders", variant: "action-cyan", category: "Operación" };
 }
 
 function escapeHtml(str) {

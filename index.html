@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="description" content="Panel de Control para Vehículo IoT" />
-  <meta name="theme-color" content="#070b14" />
-  <title>Control Vehículo IoT · Excavadora IoT</title>
+  <meta name="description" content="Plataforma Web de Control y Monitoreo en Tiempo Real para Vehículo IoT" />
+  <meta name="theme-color" content="#060a12" />
+  <title>Control y Monitoreo IoT · Excavadora IoT</title>
 
-  <!-- Favicon relativo para GitHub Pages -->
+  <!-- Favicon relativo compatible con GitHub Pages -->
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
 
   <!-- Google Fonts: Inter & JetBrains Mono -->
@@ -21,11 +21,11 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
 
   <!-- Estilos personalizados dentro de assets/css -->
-  <link rel="stylesheet" href="./assets/css/style.css?v=8" />
+  <link rel="stylesheet" href="./assets/css/style.css?v=1" />
 </head>
 <body>
   <div class="app-viewport">
-    <!-- BARRA SUPERIOR -->
+    <!-- BARRA SUPERIOR CON NAVEGACIÓN ENTRE CONTROL Y MONITOREO -->
     <header class="app-topbar">
       <div class="brand-group">
         <div class="brand-emblem" aria-hidden="true">
@@ -33,26 +33,56 @@
         </div>
         <div class="brand-titles">
           <h1 id="vehicle-title" class="vehicle-name">EXCAVADORA IOT</h1>
-          <span class="vehicle-subtitle">Centro de Control Remoto · Tiempo Real</span>
+          <span class="vehicle-subtitle">Control y Monitoreo Remoto · Tiempo Real</span>
         </div>
       </div>
 
+      <!-- NAVEGACIÓN DE VISTAS (PRÁCTICA 4.1 CONTROL + PRÁCTICA 4.2 MONITOREO) -->
+      <nav class="view-nav-tabs" role="tablist" aria-label="Cambiar entre módulo de Control y Monitoreo">
+        <button
+          id="tab-btn-control"
+          type="button"
+          class="view-tab-btn active"
+          role="tab"
+          aria-selected="true"
+          aria-controls="view-control"
+          data-target-view="control"
+        >
+          <i class="bi bi-joystick"></i>
+          <span>CONTROL</span>
+        </button>
+
+        <button
+          id="tab-btn-monitoreo"
+          type="button"
+          class="view-tab-btn"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-monitoreo"
+          data-target-view="monitoreo"
+        >
+          <i class="bi bi-activity"></i>
+          <span>MONITOREO</span>
+          <span id="mon-unread-dot" class="tab-live-dot d-none" title="Nuevo evento recibido"></span>
+        </button>
+      </nav>
+
       <div class="topbar-actions">
-        <button id="btn-refresh-health" type="button" class="btn-reconnect" title="Verificar conexión">
+        <button id="btn-refresh-health" type="button" class="btn-reconnect" title="Sincronizar estado, historial y servicios">
           <i class="bi bi-arrow-repeat"></i>
-          <span>Sincronizar</span>
+          <span class="btn-reconnect-text">Sincronizar</span>
         </button>
       </div>
     </header>
 
-    <!-- 3 INDICADORES OBLIGATORIOS DE CONEXIÓN -->
+    <!-- 3 INDICADORES INDEPENDIENTES Y VERIFICADOS (COMPARTIDOS EN AMBAS VISTAS) -->
     <section class="status-strip" aria-label="Estado de conexión del sistema">
       <div class="status-pill-card" id="pill-ws">
         <div class="status-icon-wrap">
           <i class="bi bi-broadcast"></i>
         </div>
         <div class="status-info">
-          <span class="status-title">WebSocket</span>
+          <span class="status-title">WebSocket WSS</span>
           <div class="status-state-row">
             <span id="status-ws-dot" class="status-dot checking"></span>
             <span id="status-ws-text" class="status-badge checking">Conectando</span>
@@ -98,8 +128,10 @@
       </button>
     </div>
 
-    <!-- PANEL CENTRAL DE OPERACIÓN (CERO SCROLL) -->
-    <main class="cockpit-grid">
+    <!-- ======================================================================
+         VISTA 1: MÓDULO DE CONTROL (PRÁCTICA 4.1 CONSERVADA ÍNTEGRAMENTE)
+         ====================================================================== -->
+    <main id="view-control" class="cockpit-grid" role="tabpanel" aria-labelledby="tab-btn-control">
       <!-- COLUMNA IZQUIERDA: JOYSTICK + TELEMETRÍA + DETENER -->
       <section class="glass-card card-joystick" aria-label="Control de dirección">
         <div class="card-header-bar">
@@ -174,11 +206,11 @@
               <span class="header-icon-chip"><i class="bi bi-grid-1x2-fill"></i></span>
               <span>Funciones del Vehículo</span>
             </div>
-            <span id="catalog-status-badge" class="panel-tag">7 Comandos Activos</span>
+            <span id="catalog-status-badge" class="panel-tag">7 Funciones</span>
           </div>
 
           <div id="secondary-controls-grid" class="actions-grid">
-            <!-- Botones generados dinámicamente ocupando todo el espacio -->
+            <!-- Botones generados dinámicamente -->
           </div>
         </section>
 
@@ -195,7 +227,7 @@
           <div class="demo-body">
             <div class="demo-controls-row">
               <div class="demo-select-group">
-                <i class="bi bi-Cpu-fill demo-select-icon bi-cpu-fill"></i>
+                <i class="bi bi-cpu-fill demo-select-icon"></i>
                 <select id="select-demo" class="form-select demo-select" aria-label="Seleccionar secuencia DEMO">
                   <option value="1">Demo principal</option>
                 </select>
@@ -228,6 +260,106 @@
       </div>
     </main>
 
+    <!-- ======================================================================
+         VISTA 2: MÓDULO DE MONITOREO EN TIEMPO REAL (PRÁCTICA 4.2)
+         ====================================================================== -->
+    <section
+      id="view-monitoreo"
+      class="monitoring-grid d-none"
+      role="tabpanel"
+      aria-labelledby="tab-btn-monitoreo"
+    >
+      <!-- COLUMNA IZQUIERDA: TARJETA DESTACADA DEL ÚLTIMO MOVIMIENTO / ESTADO -->
+      <article class="glass-card card-last-movement" aria-label="Último movimiento reportado del vehículo">
+        <div class="card-header-bar">
+          <div class="card-title-group">
+            <span class="header-icon-chip"><i class="bi bi-radar"></i></span>
+            <span>Último Movimiento Reportado</span>
+          </div>
+          <span id="mon-last-source-badge" class="mon-source-pill persisted">Cargando...</span>
+        </div>
+
+        <div class="mon-hero-body">
+          <!-- BLOQUE VISUAL DEL MOVIMIENTO ACTUAL -->
+          <div id="mon-hero-card" class="mon-hero-display">
+            <div id="mon-last-icon-wrap" class="mon-hero-icon tone-cyan" aria-hidden="true">
+              <i id="mon-last-icon" class="bi bi-activity"></i>
+            </div>
+            <div class="mon-hero-texts">
+              <span class="mon-hero-overline">ESTADO / COMANDO REPORTADO</span>
+              <h2 id="mon-last-command" class="mon-hero-title">Cargando...</h2>
+              <div class="mon-hero-badges">
+                <span id="mon-last-code-badge" class="mon-code-pill">Código #--</span>
+                <span id="mon-last-origin" class="mon-origin-pill">Consultando API...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- METADATOS VERIFICABLES: VEHÍCULO, FECHA Y HORA REALES -->
+          <div class="mon-meta-grid">
+            <div class="mon-meta-item">
+              <span class="mon-meta-label"><i class="bi bi-calendar3 me-1"></i>FECHA VERIFICADA</span>
+              <strong id="mon-last-date" class="mon-meta-value">--/--/----</strong>
+            </div>
+
+            <div class="mon-meta-item">
+              <span class="mon-meta-label"><i class="bi bi-clock-history me-1"></i>HORA EXACTA</span>
+              <strong id="mon-last-time" class="mon-meta-value text-info">--:--:--</strong>
+            </div>
+
+            <div class="mon-meta-item mon-meta-wide">
+              <span class="mon-meta-label"><i class="bi bi-truck-front-fill me-1"></i>VEHÍCULO MONITOREADO</span>
+              <strong id="mon-last-vehicle" class="mon-meta-value">Excavadora IoT (ID #1)</strong>
+            </div>
+          </div>
+
+          <!-- NOTA DE DELIMITACIÓN TÉCNICA OBLIGATORIA -->
+          <div class="mon-disclaimer-box">
+            <i class="bi bi-shield-check text-info"></i>
+            <span>
+              <strong>Verificación técnica:</strong> «WSS en línea» y el estado reportado confirman la recepción del evento y su registro en Amazon RDS, no la ejecución física del motor. Los pasos internos de una DEMO actualizan este panel en vivo sin alterar el historial individual.
+            </span>
+          </div>
+        </div>
+      </article>
+
+      <!-- COLUMNA DERECHA: TABLA DINÁMICA DE LOS 10 MOVIMIENTOS INDIVIDUALES MÁS RECIENTES -->
+      <section class="glass-card card-history-table" aria-label="Historial de los 10 movimientos individuales más recientes">
+        <div class="card-header-bar">
+          <div class="card-title-group">
+            <span class="header-icon-chip chip-emerald"><i class="bi bi-list-ol"></i></span>
+            <span>Últimos 10 Movimientos Individuales (Amazon RDS)</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span id="mon-sync-status-badge" class="panel-tag">Sincronizando...</span>
+            <span id="mon-history-count" class="panel-tag">0 / 10 recientes</span>
+          </div>
+        </div>
+
+        <div class="mon-table-wrapper">
+          <table class="mon-table" aria-label="Tabla de los diez movimientos individuales más recientes">
+            <thead>
+              <tr>
+                <th scope="col" class="col-num">#</th>
+                <th scope="col" class="col-move">Movimiento</th>
+                <th scope="col" class="col-origin">Origen</th>
+                <th scope="col" class="col-date">Fecha</th>
+                <th scope="col" class="col-time">Hora</th>
+              </tr>
+            </thead>
+            <tbody id="mon-history-tbody">
+              <tr>
+                <td colspan="5" class="mon-table-empty">
+                  <span class="spinner-border spinner-border-sm text-info me-2" role="status" aria-hidden="true"></span>
+                  Cargando historial desde Amazon RDS...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
     <!-- CRÉDITOS OBLIGATORIOS AL PIE -->
     <footer class="app-footer">
       <span>Desarrollado por Jesús Sergio Quiroz Guzmán · 2026</span>
@@ -235,6 +367,6 @@
   </div>
 
   <!-- Lógica modular ES6 dentro de assets/js -->
-  <script type="module" src="./assets/js/app.js?v=8"></script>
+  <script type="module" src="./assets/js/app.js?v=1"></script>
 </body>
 </html>
