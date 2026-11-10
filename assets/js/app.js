@@ -11,23 +11,24 @@ import {
   fetchDemos,
   fetchDemoMovements,
   sendMovement,
-  registerDemoExecution,
-} from "./api.js?v=6";
+  startDemoOnBackend,
+} from "./api.js?v=7";
 
 import {
   setIndicatorState,
   showErrorBanner,
   hideErrorBanner,
   updateActiveCommandBadge,
+   updateJoystickTelemetry,
   renderActionButtons,
   populateDemoSelect,
   setDemoProgressUI,
   setControlsDisabled,
   highlightActiveButton,
-} from "./ui.js?v=6";
+} from "./ui.js?v=7";
 
-import { VirtualJoystick, JOYSTICK_DIRECTIONS } from "./joystick.js?v=6";
-import { VehicleWebSocket } from "./ws.js?v=6";
+import { VirtualJoystick } from "./joystick.js?v=7";
+import { VehicleWebSocket } from "./ws.js?v=7";
 
 const state = {
   commands: [],
@@ -37,6 +38,7 @@ const state = {
   demoSleepTimer: null,
   joystick: null,
   wsClient: null,
+  hasVerifiedOnce: false,
 };
 
 const FALLBACK_CATALOG = [
@@ -56,29 +58,38 @@ const FALLBACK_CATALOG = [
 ];
 
 /**
- * Inicialización al cargar el DOM
+ * Inicialización inmediata al cargar el DOM
  */
 document.addEventListener("DOMContentLoaded", async () => {
   initUIEventListeners();
   initJoystickControl();
+  applyCommandCatalog(FALLBACK_CATALOG);
+
+  // Conectar WebSocket y verificar API + RDS de inmediato en paralelo
   initWebSocketChannel();
   initMobileLifecycleListeners();
 
-  // Renderizar catálogo base inmediatamente para respuesta instantánea
-  applyCommandCatalog(FALLBACK_CATALOG);
+  await Promise.all([
+    verifyBackendAndDatabaseHealth(false),
+    loadCatalogAndDemos(),
+  ]);
 
-  await verifyBackendAndDatabaseHealth();
-  await loadCatalogAndDemos();
+  // Verificación periódica silenciosa cada 20 segundos
+  setInterval(() => {
+    verifyBackendAndDatabaseHealth(true);
+  }, 20000);
 });
 
 /**
- * Reconecta automáticamente en teléfonos móviles al volver a abrir la pestaña o recuperar red
+ * Reconecta automáticamente en teléfonos móviles o al volver a la pestaña
  */
 function initMobileLifecycleListeners() {
   window.addEventListener("online", () => {
     hideErrorBanner();
-    state.wsClient?.reconnectNow();
-    verifyBackendAndDatabaseHealth();
+    if (!state.wsClient?.socket || state.wsClient.socket.readyState !== WebSocket.OPEN) {
+      state.wsClient?.connect();
+    }
+    verifyBackendAndDatabaseHealth(true);
   });
 
   document.addEventListener("visibilitychange", () => {
@@ -86,13 +97,13 @@ function initMobileLifecycleListeners() {
       if (!state.wsClient?.socket || state.wsClient.socket.readyState !== WebSocket.OPEN) {
         state.wsClient?.connect();
       }
-      verifyBackendAndDatabaseHealth();
+      verifyBackendAndDatabaseHealth(true);
     }
   });
 }
 
 /**
- * Registra eventos de botones fijos (DETENER, DEMO, Reintentar)
+ * Registra eventos de botones fijos (DETENER, DEMO, Sincronizar)
  */
 function initUIEventListeners() {
   const btnCloseError = document.getElementById("btn-close-error");
@@ -104,8 +115,12 @@ function initUIEventListeners() {
   if (btnRefresh) {
     btnRefresh.addEventListener("click", async () => {
       hideErrorBanner();
-      state.wsClient?.reconnectNow();
-      await verifyBackendAndDatabaseHealth();
+      if (!state.wsClient?.socket || state.wsClient.socket.readyState !== WebSocket.OPEN) {
+        state.wsClient?.reconnectNow();
+      } else {
+        setIndicatorState("ws", "online", "En línea");
+      }
+      await verifyBackendAndDatabaseHealth(false);
       await loadCatalogAndDemos();
     });
   }
@@ -121,7 +136,7 @@ function initUIEventListeners() {
   if (btnStartDemo) {
     btnStartDemo.addEventListener("click", () => {
       const selectEl = document.getElementById("select-demo");
-      const demoId = selectEl ? Number(selectEl.value) : 0;
+      const demoId = selectEl ? Number(selectEl.value) : 1;
       if (!demoId) {
         showErrorBanner("Selecciona una DEMO válida antes de iniciar.");
         return;
@@ -159,22 +174,68 @@ function initJoystickControl() {
 }
 
 /**
+ * Obtiene el nombre legible de un comando a partir de su ID
+ */
+function getCommandNameById(comandoId) {
+  const numericId = Number(comandoId);
+  const found =
+    state.commands.find((c) => Number(c.id) === numericId) ||
+    FALLBACK_CATALOG.find((c) => Number(c.id) === numericId);
+  return found ? found.nombre : "En espera";
+}
+
+/**
  * Inicia el canal WebSocket hacia AWS
  */
 function initWebSocketChannel() {
   state.wsClient = new VehicleWebSocket({
     onOpenCallback: () => {
-      // Si el WebSocket abre en móvil, re-verificar indicadores si estaban pendientes
-      const apiText = document.getElementById("status-api-text")?.textContent;
-      if (apiText !== "Disponible") {
-        verifyBackendAndDatabaseHealth();
-      }
+      setIndicatorState("ws", "online", "En línea");
     },
     onEventCallback: (payload) => {
-      if (payload.evento === "NUEVO_MOVIMIENTO" && payload.datos) {
-        const nombreCmd = payload.datos.comando || `Comando`;
-        updateActiveCommandBadge(nombreCmd, payload.datos.comando_id === state.stopCommandId);
-        highlightActiveButton(payload.datos.comando_id);
+      const evento = String(payload.evento || "");
+
+      if (evento === "CONEXION_ESTABLECIDA") {
+        setIndicatorState("ws", "online", "En línea");
+        return;
+      }
+
+      if (evento === "NUEVO_MOVIMIENTO") {
+        const cmdId = Number(payload.comando_id ?? payload.datos?.comando_id);
+        const nombreCmd = payload.datos?.comando || getCommandNameById(cmdId);
+        const isStop = cmdId === state.stopCommandId;
+        updateActiveCommandBadge(nombreCmd, isStop);
+        highlightActiveButton(cmdId);
+        if (!state.joystick?.isDragging) {
+          updateJoystickTelemetry({
+            angle: 0,
+            distancePercent: isStop ? 0 : 100,
+            directionLabel: nombreCmd,
+          });
+        }
+        return;
+      }
+
+      if (evento === "MOVIMIENTO_DEMO") {
+        const cmdId = Number(payload.comando_id);
+        const nombreCmd = getCommandNameById(cmdId);
+        updateActiveCommandBadge(`DEMO · ${nombreCmd}`, false);
+        highlightActiveButton(cmdId);
+        updateJoystickTelemetry({
+          angle: 0,
+          distancePercent: 100,
+          directionLabel: `DEMO: ${nombreCmd}`,
+        });
+        return;
+      }
+
+      if (evento === "FIN_DEMO") {
+        updateActiveCommandBadge("Detener", true);
+        updateJoystickTelemetry({
+          angle: 0,
+          distancePercent: 0,
+          directionLabel: "En espera",
+        });
       }
     },
   });
@@ -185,32 +246,49 @@ function initWebSocketChannel() {
 /**
  * Comprueba en paralelo el estado de los indicadores: API AWS (21 servicios) y Amazon RDS
  */
-async function verifyBackendAndDatabaseHealth() {
-  setIndicatorState("api", "checking", "Comprobando");
-  setIndicatorState("rds", "checking", "Sin verificar");
+async function verifyBackendAndDatabaseHealth(silent = false) {
+  if (!silent && !state.hasVerifiedOnce) {
+    setIndicatorState("api", "checking", "Comprobando");
+    setIndicatorState("rds", "checking", "Sin verificar");
+  }
 
-  const [apiResult, rdsResult] = await Promise.all([checkApiHealth(), checkRdsHealth()]);
+  // Consultar el estado en RDS primero o en paralelo: si /api/vehiculos/1/estado responde,
+  // confirma tanto que el servidor FastAPI en AWS como Amazon RDS están en línea.
+  const [rdsResult, apiResult] = await Promise.all([
+    checkRdsHealth(),
+    checkApiHealth(),
+  ]);
+
+  state.hasVerifiedOnce = true;
 
   if (rdsResult.ok) {
-    // Si Amazon RDS respondió desde FastAPI, tanto la API como RDS están 100% disponibles
     setIndicatorState("api", "online", "Disponible");
     setIndicatorState("rds", "online", "Disponible");
-    if (rdsResult.data?.ultimo_comando) {
-      updateActiveCommandBadge(
-        rdsResult.data.ultimo_comando,
-        rdsResult.data.ultimo_comando.toLowerCase().includes("detener")
-      );
+
+    const estado = rdsResult.data;
+    if (estado?.vehiculo) {
+      const titleEl = document.getElementById("vehicle-title");
+      if (titleEl) titleEl.textContent = String(estado.vehiculo).toUpperCase();
     }
-    return;
+    if (estado?.comando && !state.isDemoRunning && !state.joystick?.isDragging) {
+      const cmdName = String(estado.comando);
+      const isStop =
+        Number(estado.id_comando) === state.stopCommandId ||
+        cmdName.toLowerCase().includes("detener");
+      updateActiveCommandBadge(cmdName, isStop);
+    }
+    return true;
   }
 
   if (apiResult.ok) {
     setIndicatorState("api", "online", "Disponible");
     setIndicatorState("rds", "offline", "No disponible");
-  } else {
-    setIndicatorState("api", "offline", "No disponible");
-    setIndicatorState("rds", "offline", "No disponible");
+    return false;
   }
+
+  setIndicatorState("api", "offline", "No disponible");
+  setIndicatorState("rds", "offline", "No disponible");
+  return false;
 }
 
 /**
@@ -221,7 +299,7 @@ async function loadCatalogAndDemos() {
     const vehicle = await fetchVehicleInfo();
     if (vehicle && vehicle.nombre) {
       const titleEl = document.getElementById("vehicle-title");
-      if (titleEl) titleEl.textContent = vehicle.nombre.toUpperCase();
+      if (titleEl) titleEl.textContent = String(vehicle.nombre).toUpperCase();
     }
   } catch (_) {
     // Mantener título por defecto
@@ -231,6 +309,8 @@ async function loadCatalogAndDemos() {
     const commands = await fetchVehicleCommands();
     if (Array.isArray(commands) && commands.length > 0) {
       applyCommandCatalog(commands);
+      setIndicatorState("api", "online", "Disponible");
+      setIndicatorState("rds", "online", "Disponible");
     }
   } catch (_) {
     // Mantener catálogo base ya renderizado
@@ -238,7 +318,11 @@ async function loadCatalogAndDemos() {
 
   try {
     const demos = await fetchDemos();
-    populateDemoSelect(demos);
+    if (Array.isArray(demos) && demos.length > 0) {
+      populateDemoSelect(demos);
+    } else {
+      populateDemoSelect([{ id: 1, nombre: "Demo principal" }]);
+    }
   } catch (_) {
     populateDemoSelect([{ id: 1, nombre: "Demo principal" }]);
   }
@@ -255,9 +339,9 @@ function applyCommandCatalog(commands) {
       keywords.some(
         (kw) =>
           c.nombre.toLowerCase().includes(kw) ||
-          (c.codigo && c.codigo.toLowerCase().includes(kw))
+          (c.codigo && String(c.codigo).toLowerCase().includes(kw))
       )
-    ) || state.commands.find((c) => c.id === fallbackId);
+    ) || state.commands.find((c) => Number(c.id) === fallbackId);
 
   const cmdUp = findCmd(["avanzar", "adelante"], 1);
   const cmdDown = findCmd(["retroceder", "atras"], 2);
@@ -266,7 +350,7 @@ function applyCommandCatalog(commands) {
   const cmdStop = findCmd(["detener", "stop", "paro"], 13);
   const cmdDemo = findCmd(["demo"], 12);
 
-  if (cmdStop) state.stopCommandId = cmdStop.id;
+  if (cmdStop) state.stopCommandId = Number(cmdStop.id);
 
   state.joystick?.setCommandMapping({
     UP: cmdUp,
@@ -277,10 +361,12 @@ function applyCommandCatalog(commands) {
   });
 
   const excludedIds = new Set(
-    [cmdUp?.id, cmdDown?.id, cmdLeft?.id, cmdRight?.id, cmdStop?.id, cmdDemo?.id].filter(Boolean)
+    [cmdUp?.id, cmdDown?.id, cmdLeft?.id, cmdRight?.id, cmdStop?.id, cmdDemo?.id]
+      .filter(Boolean)
+      .map(Number)
   );
 
-  const secondaryCommands = state.commands.filter((c) => !excludedIds.has(c.id));
+  const secondaryCommands = state.commands.filter((c) => !excludedIds.has(Number(c.id)));
 
   renderActionButtons(secondaryCommands, async (cmd) => {
     if (state.isDemoRunning) {
@@ -296,7 +382,7 @@ function applyCommandCatalog(commands) {
  */
 async function dispatchVehicleCommand(comandoId, nombreComando, origen = "WEB_CONTROL") {
   hideErrorBanner();
-  const isStop = comandoId === state.stopCommandId;
+  const isStop = Number(comandoId) === state.stopCommandId;
 
   updateActiveCommandBadge(nombreComando, isStop);
   highlightActiveButton(comandoId);
@@ -341,7 +427,7 @@ async function executePriorityStop(motivo = "DETENCIÓN PRIORITARIA") {
 }
 
 /**
- * Ejecuta una secuencia DEMO consultando sus N pasos desde el backend y respetando duración y pausa
+ * Ejecuta una secuencia DEMO en el backend (/api/vehiculos/demo) y muestra progreso visual
  */
 async function runDemoSequence(demoId) {
   if (state.isDemoRunning) {
@@ -357,57 +443,56 @@ async function runDemoSequence(demoId) {
 
   setDemoProgressUI({
     active: true,
-    stepText: "Preparando secuencia...",
-    percent: 5,
+    stepText: "Ejecutando secuencia DEMO...",
+    percent: 15,
   });
 
   try {
-    await registerDemoExecution(demoId);
-    const steps = await fetchDemoMovements(demoId);
+    // Dispara la ejecución real en el backend (/api/vehiculos/demo) en paralelo con el progreso visual
+    const backendDemoPromise = startDemoOnBackend(demoId);
+    const steps = await fetchDemoMovements(demoId).catch(() => []);
 
-    if (!Array.isArray(steps) || steps.length === 0) {
-      throw new Error("La DEMO seleccionada no tiene movimientos configurados.");
-    }
+    if (Array.isArray(steps) && steps.length > 0) {
+      const sortedSteps = [...steps].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+      const total = sortedSteps.length;
 
-    const sortedSteps = [...steps].sort((a, b) => (a.orden || 0) - (b.orden || 0));
-    const total = sortedSteps.length;
+      for (let i = 0; i < total; i++) {
+        if (state.demoCancelRequested) break;
 
-    for (let i = 0; i < total; i++) {
-      if (state.demoCancelRequested) break;
+        const step = sortedSteps[i];
+        const stepNum = i + 1;
+        const pct = Math.round((stepNum / total) * 100);
+        const cmdName = step.comando || getCommandNameById(step.id_comando);
+        const durationMs = Number(step.duracion_ms) || (Number(step.duracion_segundos) || 1) * 1000;
+        const pauseMs = Number(step.pausa_ms) || (Number(step.pausa_segundos) || 0) * 1000;
 
-      const step = sortedSteps[i];
-      const stepNum = i + 1;
-      const pct = Math.round((stepNum / total) * 100);
-      const durationSec = Number(step.duracion_segundos) || 2;
-      const pauseSec = Number(step.pausa_segundos) || 0;
+        if (pauseMs > 0) {
+          await waitInterruptible(pauseMs);
+          if (state.demoCancelRequested) break;
+        }
 
-      setDemoProgressUI({
-        active: true,
-        stepText: `Paso ${stepNum}/${total}: ${step.comando} (${durationSec}s)`,
-        percent: pct,
-      });
-
-      updateActiveCommandBadge(`DEMO · ${step.comando}`, false);
-
-      await waitInterruptible(durationSec * 1000);
-      if (state.demoCancelRequested) break;
-
-      if (pauseSec > 0) {
         setDemoProgressUI({
           active: true,
-          stepText: `Pausa (${pauseSec}s)...`,
+          stepText: `Paso ${stepNum}/${total}: ${cmdName}`,
           percent: pct,
         });
-        await waitInterruptible(pauseSec * 1000);
+        updateActiveCommandBadge(`DEMO · ${cmdName}`, false);
+
+        await waitInterruptible(durationMs);
       }
+    } else {
+      await backendDemoPromise;
     }
 
+    await backendDemoPromise.catch(() => {});
+
     if (!state.demoCancelRequested) {
-      await sendMovement(state.stopCommandId, "FIN_DEMO");
       updateActiveCommandBadge("Detener", true);
     }
   } catch (err) {
-    showErrorBanner(`Error durante la DEMO: ${err?.message || "Error de conexión"}`);
+    if (!state.demoCancelRequested) {
+      showErrorBanner(`Error durante la DEMO: ${err?.message || "Error de conexión"}`);
+    }
   } finally {
     state.isDemoRunning = false;
     state.demoCancelRequested = false;
