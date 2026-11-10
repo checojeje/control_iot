@@ -4,8 +4,8 @@
  * Filtra eventos de otros vehículos, mantiene heartbeat y dispara resincronización tras reconexión.
  */
 
-import { CONFIG } from "./api.js?v=1";
-import { setIndicatorState } from "./ui.js?v=1";
+import { CONFIG } from "./api.js?v=2";
+import { setIndicatorState } from "./ui.js?v=2";
 
 export class VehicleWebSocket {
   constructor({ onEventCallback, onOpenCallback, onReconnectCallback }) {

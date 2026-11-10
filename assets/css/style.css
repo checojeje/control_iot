@@ -1301,6 +1301,8 @@ body {
 .mon-table-wrapper {
   flex: 1 1 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 6px 12px 10px;
@@ -1308,6 +1310,7 @@ body {
 
 .mon-table {
   width: 100%;
+  height: 100%;
   border-collapse: separate;
   border-spacing: 0 5px;
   font-size: 0.82rem;
@@ -1458,13 +1461,20 @@ body {
 @media (max-width: 767.98px) and (orientation: portrait) {
   .app-viewport {
     padding: 6px 8px 4px;
+    gap: 5px;
+  }
+
+  /* Barra superior en 2 renglones limpios: 1) Marca + Sincronizar, 2) Pestañas 50%/50% */
+  .app-topbar {
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    border-radius: 12px;
     gap: 6px;
   }
 
-  .app-topbar {
-    padding: 5px 8px;
-    border-radius: 11px;
-    gap: 6px;
+  .brand-group {
+    order: 1;
+    gap: 8px;
   }
 
   .brand-emblem {
@@ -1475,34 +1485,47 @@ body {
   }
 
   .vehicle-name {
-    font-size: 0.78rem;
+    font-size: 0.86rem;
+    white-space: nowrap;
   }
 
   .vehicle-subtitle {
     display: none;
   }
 
-  .view-nav-tabs {
-    padding: 2px;
-    border-radius: 9px;
-  }
-
-  .view-tab-btn {
-    padding: 4px 9px;
-    font-size: 0.68rem;
-    gap: 4px;
+  .topbar-actions {
+    order: 2;
+    margin-left: auto;
   }
 
   .btn-reconnect {
-    padding: 4px 8px;
-    font-size: 0.68rem;
+    padding: 4px 10px;
+    font-size: 0.7rem;
+    border-radius: 8px;
   }
 
   .btn-reconnect-text {
-    display: none;
+    display: inline;
   }
 
-  /* 3 indicadores compactos */
+  .view-nav-tabs {
+    order: 3;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 3px;
+    border-radius: 9px;
+    gap: 4px;
+  }
+
+  .view-tab-btn {
+    justify-content: center;
+    padding: 5px 10px;
+    font-size: 0.72rem;
+    gap: 6px;
+  }
+
+  /* 3 indicadores bien distribuidos sin recortar texto */
   .status-strip {
     gap: 5px;
   }
@@ -1520,17 +1543,20 @@ body {
   .status-info {
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     text-align: center;
-    gap: 2px;
+    gap: 3px;
   }
 
   .status-title {
-    font-size: 0.62rem;
+    font-size: 0.6rem;
+    text-align: center;
+    width: 100%;
   }
 
   .status-badge {
     font-size: 0.58rem;
-    padding: 1px 6px;
+    padding: 1px 7px;
   }
 
   .status-dot {

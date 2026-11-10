@@ -13,7 +13,7 @@ import {
   fetchDemoMovements,
   sendMovement,
   startDemoOnBackend,
-} from "./api.js?v=1";
+} from "./api.js?v=2";
 
 import {
   switchActiveView,
@@ -28,11 +28,11 @@ import {
   setDemoProgressUI,
   setControlsDisabled,
   highlightActiveButton,
-} from "./ui.js?v=1";
+} from "./ui.js?v=2";
 
-import { VirtualJoystick } from "./joystick.js?v=1";
-import { VehicleWebSocket } from "./ws.js?v=1";
-import { MonitoringManager } from "./monitoring.js?v=1";
+import { VirtualJoystick } from "./joystick.js?v=2";
+import { VehicleWebSocket } from "./ws.js?v=2";
+import { MonitoringManager } from "./monitoring.js?v=2";
 
 const state = {
   activeView: "control",
