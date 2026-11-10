@@ -3,8 +3,8 @@
  * @description Cliente WebSocket nativo con heartbeat y reconexión segura hacia AWS
  */
 
-import { CONFIG } from "./api.js?v=7";
-import { setIndicatorState } from "./ui.js?v=7";
+import { CONFIG } from "./api.js?v=8";
+import { setIndicatorState } from "./ui.js?v=8";
 
 export class VehicleWebSocket {
   constructor({ onEventCallback, onOpenCallback }) {

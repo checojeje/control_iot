@@ -164,9 +164,7 @@ export function populateDemoSelect(demos) {
   demos.forEach((demo) => {
     const opt = document.createElement("option");
     opt.value = demo.id;
-    opt.textContent = demo.descripcion
-      ? `${demo.nombre} · ${demo.descripcion}`
-      : demo.nombre;
+    opt.textContent = demo.nombre;
     select.appendChild(opt);
   });
 }

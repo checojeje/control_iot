@@ -3,7 +3,7 @@
  * @description Joystick virtual responsivo con soporte Pointer Events (táctil/mouse) y teclado
  */
 
-import { updateJoystickTelemetry } from "./ui.js?v=7";
+import { updateJoystickTelemetry } from "./ui.js?v=8";
 
 export const JOYSTICK_DIRECTIONS = {
   NEUTRAL: { key: "NEUTRAL", code: "DETENER", id: 13, label: "En espera" },

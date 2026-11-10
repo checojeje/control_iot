@@ -324,7 +324,7 @@ body {
 }
 
 /* ==========================================================================
-   3. GRID PRINCIPAL DE LA CABINA
+   3. GRID PRINCIPAL DE LA CABINA (ESCRITORIO / PC)
    ========================================================================== */
 .cockpit-grid {
   flex: 1 1 0;
@@ -1005,9 +1005,9 @@ body {
 }
 
 /* ==========================================================================
-   FORMATO 1 DE CELULAR: VERTICAL / PORTRAIT (max-width: 767.98px)
-   Garantiza que NADA se corte abajo poniendo el Joystick a la izquierda y
-   Telemetría + Botón DETENER a la derecha dentro de la tarjeta superior.
+   MODO CELULAR VERTICAL / PORTRAIT (max-width: 767.98px)
+   Corrige el colapso de flex-basis: 0 para que las 3 tarjetas (Dirección,
+   Funciones del Vehículo y Modo DEMO) se vean completas y proporcionadas.
    ========================================================================== */
 @media (max-width: 767.98px) and (orientation: portrait) {
   .app-viewport {
@@ -1048,7 +1048,7 @@ body {
   .status-pill-card {
     padding: 5px 6px;
     border-radius: 10px;
-    gap: 6px;
+    gap: 4px;
   }
 
   .status-icon-wrap {
@@ -1063,11 +1063,11 @@ body {
   }
 
   .status-title {
-    font-size: 0.63rem;
+    font-size: 0.62rem;
   }
 
   .status-badge {
-    font-size: 0.6rem;
+    font-size: 0.58rem;
     padding: 1px 6px;
   }
 
@@ -1076,8 +1076,10 @@ body {
     height: 6px;
   }
 
-  /* Layout vertical sin recortes */
+  /* Columna única con alturas proporcionales exactas */
   .cockpit-grid {
+    flex: 1 1 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -1093,9 +1095,9 @@ body {
   }
 
   .header-icon-chip {
-    width: 22px;
-    height: 22px;
-    font-size: 0.72rem;
+    width: 21px;
+    height: 21px;
+    font-size: 0.7rem;
     border-radius: 6px;
   }
 
@@ -1105,13 +1107,15 @@ body {
     padding: 2px 8px;
   }
 
-  /* En celular vertical: Joystick a la izquierda y Telemetría + DETENER a la derecha */
+  /* 1. TARJETA DE DIRECCIÓN: altura automática fija para no colapsarse nunca */
   .card-joystick {
     flex: 0 0 auto;
     height: auto;
   }
 
   .joystick-cockpit-body {
+    flex: 0 0 auto;
+    height: auto;
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
@@ -1120,6 +1124,8 @@ body {
   }
 
   .joystick-arena {
+    flex: 0 0 auto;
+    height: auto;
     padding: 6px;
     border-radius: 12px;
   }
@@ -1129,8 +1135,8 @@ body {
   }
 
   .joystick-base {
-    width: 114px;
-    height: 114px;
+    width: 112px;
+    height: 112px;
   }
 
   .joystick-handle-core {
@@ -1138,7 +1144,9 @@ body {
   }
 
   .joystick-side-controls {
-    gap: 7px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     justify-content: center;
   }
 
@@ -1157,7 +1165,7 @@ body {
   }
 
   .telemetry-label {
-    font-size: 0.55rem;
+    font-size: 0.54rem;
   }
 
   .telemetry-val {
@@ -1171,9 +1179,9 @@ body {
   }
 
   .stop-icon-circle {
-    width: 26px;
-    height: 26px;
-    font-size: 0.95rem;
+    width: 24px;
+    height: 24px;
+    font-size: 0.9rem;
   }
 
   .stop-main-label {
@@ -1184,15 +1192,19 @@ body {
     display: none;
   }
 
-  /* Funciones + DEMO ocupan el resto de la pantalla sin recortarse jamás */
+  /* 2. FUNCIONES + DEMO ocupan el espacio restante sin colapsar */
   .right-column-stack {
     flex: 1 1 0;
-    gap: 6px;
     min-height: 0;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .card-actions {
-    flex: 1.55 1 0;
+    flex: 1 1 0;
+    min-height: 0;
   }
 
   .actions-grid {
@@ -1221,22 +1233,26 @@ body {
     font-size: 0.58rem;
   }
 
-  /* Modo DEMO compacto en una sola fila o dos muy compactas */
+  /* 3. MODO DEMO: selector a la izquierda + botones a la derecha o 2 filas con altura garantizada */
   .card-demo {
     flex: 0 0 auto;
+    height: auto;
   }
 
   .demo-body {
+    flex: 0 0 auto;
+    height: auto;
     padding: 6px 8px;
-    gap: 5px;
+    gap: 6px;
   }
 
   .demo-controls-row {
+    height: auto;
     gap: 6px;
   }
 
   .demo-select {
-    font-size: 0.76rem;
+    font-size: 0.75rem;
     padding: 5px 8px 5px 30px;
     border-radius: 8px;
   }
@@ -1247,8 +1263,10 @@ body {
   }
 
   .demo-buttons-row {
-    gap: 6px;
+    flex: 0 0 auto;
+    height: 34px;
     max-height: 34px;
+    gap: 6px;
   }
 
   .btn-demo-start,
@@ -1259,15 +1277,14 @@ body {
   }
 
   .app-footer {
-    font-size: 0.64rem;
+    font-size: 0.62rem;
     padding: 0;
   }
 }
 
 /* ==========================================================================
-   FORMATO 2 DE CELULAR: HORIZONTAL / LANDSCAPE (max-height: 540px)
-   Garantiza visibilidad 100% en modo horizontal sin que se corte el botón
-   DETENER ni las funciones ni el Modo DEMO.
+   MODO CELULAR HORIZONTAL / LANDSCAPE (max-height: 540px)
+   Corrige textos truncados en botones y asegura que Modo DEMO no se recorte.
    ========================================================================== */
 @media (max-height: 540px) and (orientation: landscape) {
   .app-viewport {
@@ -1288,7 +1305,7 @@ body {
   }
 
   .vehicle-name {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
   }
 
   .vehicle-subtitle {
@@ -1297,11 +1314,11 @@ body {
 
   .btn-reconnect {
     padding: 2px 8px;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     border-radius: 7px;
   }
 
-  /* Franja de estado ultra compacta */
+  /* Franja de 3 indicadores compacta */
   .status-strip {
     gap: 6px;
   }
@@ -1313,29 +1330,33 @@ body {
   }
 
   .status-icon-wrap {
-    width: 22px;
-    height: 22px;
-    font-size: 0.72rem;
-    border-radius: 6px;
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    border-radius: 5px;
   }
 
   .status-title {
-    font-size: 0.66rem;
+    font-size: 0.64rem;
   }
 
   .status-badge {
-    font-size: 0.6rem;
+    font-size: 0.58rem;
     padding: 1px 6px;
   }
 
-  /* 2 columnas en horizontal */
+  /* 2 columnas equilibradas */
   .cockpit-grid {
+    flex: 1 1 0;
+    min-height: 0;
     grid-template-columns: 44% 56%;
     gap: 6px;
   }
 
   .right-column-stack {
-    gap: 6px;
+    gap: 5px;
+    min-height: 0;
+    height: 100%;
   }
 
   .card-header-bar {
@@ -1343,28 +1364,30 @@ body {
   }
 
   .card-title-group {
-    font-size: 0.72rem;
-    gap: 6px;
+    font-size: 0.7rem;
+    gap: 5px;
   }
 
   .header-icon-chip {
-    width: 20px;
-    height: 20px;
-    font-size: 0.68rem;
+    width: 18px;
+    height: 18px;
+    font-size: 0.64rem;
     border-radius: 5px;
   }
 
   .command-pill,
   .panel-tag {
-    font-size: 0.6rem;
+    font-size: 0.58rem;
     padding: 1px 7px;
   }
 
-  /* Izquierda: Joystick a la izquierda + Telemetría y DETENER a la derecha */
+  /* Izquierda: Joystick centrado en su arena + Telemetría y DETENER estirados a la par */
   .joystick-cockpit-body {
+    flex: 1 1 0;
+    min-height: 0;
     display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
+    grid-template-columns: 44% 56%;
+    align-items: stretch;
     padding: 6px 8px;
     gap: 8px;
   }
@@ -1380,8 +1403,8 @@ body {
   }
 
   .joystick-base {
-    width: clamp(86px, 34vh, 112px);
-    height: clamp(86px, 34vh, 112px);
+    width: clamp(84px, 32vh, 108px);
+    height: clamp(84px, 32vh, 108px);
   }
 
   .joystick-handle-core {
@@ -1389,17 +1412,22 @@ body {
   }
 
   .joystick-side-controls {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     gap: 5px;
+    height: 100%;
   }
 
   .telemetry-bar {
+    flex: 1 1 0;
     grid-template-columns: repeat(2, 1fr);
     gap: 4px;
   }
 
   .telemetry-chip {
     padding: 2px 5px;
-    border-radius: 6px;
+    border-radius: 7px;
   }
 
   .telemetry-chip-dir {
@@ -1407,36 +1435,38 @@ body {
   }
 
   .telemetry-label {
-    font-size: 0.5rem;
+    font-size: 0.48rem;
   }
 
   .telemetry-val {
-    font-size: 0.68rem;
+    font-size: 0.66rem;
   }
 
   .btn-stop-vehicle {
-    padding: 5px 8px;
+    flex: 0 0 auto;
+    padding: 6px 8px;
     border-radius: 8px;
     gap: 6px;
   }
 
   .stop-icon-circle {
-    width: 22px;
-    height: 22px;
-    font-size: 0.82rem;
+    width: 20px;
+    height: 20px;
+    font-size: 0.78rem;
   }
 
   .stop-main-label {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
   }
 
   .stop-sub-label {
     display: none;
   }
 
-  /* Derecha Arriba: Los 7 botones en solo 2 filas (4 arriba + 3 abajo) */
+  /* Derecha Arriba: 7 botones con ícono arriba y texto completo abajo (sin recortar texto) */
   .card-actions {
-    flex: 1.5 1 0;
+    flex: 1 1 0;
+    min-height: 0;
   }
 
   .actions-grid {
@@ -1453,70 +1483,91 @@ body {
   }
 
   .btn-action-cmd {
-    padding: 3px 6px;
-    gap: 5px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3px 4px;
+    gap: 3px;
     border-radius: 8px;
   }
 
   .action-icon-box {
     width: 22px;
     height: 22px;
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     border-radius: 6px;
   }
 
+  .action-text-wrap {
+    align-items: center;
+    width: 100%;
+  }
+
   .action-label {
-    font-size: 0.66rem;
+    font-size: 0.62rem;
+    text-align: center;
+    width: 100%;
   }
 
   .action-sub {
     display: none;
   }
 
-  /* Derecha Abajo: Selector DEMO + Iniciar + Cancelar en 1 sola fila horizontal */
+  /* Derecha Abajo: Modo DEMO con altura fija garantizada para que nunca se corte */
   .card-demo {
     flex: 0 0 auto;
+    height: auto;
   }
 
   .demo-body {
+    flex: 0 0 auto;
+    height: auto;
     padding: 5px 8px;
+    gap: 4px;
   }
 
   .demo-controls-row {
+    height: auto;
     flex-direction: row;
     align-items: center;
     gap: 6px;
   }
 
   .demo-select-group {
-    flex: 1.2 1 0;
+    flex: 1.1 1 0;
+    min-width: 0;
   }
 
   .demo-select {
-    font-size: 0.7rem;
-    padding: 4px 8px 4px 26px;
+    font-size: 0.68rem;
+    height: 28px;
+    padding: 2px 22px 2px 26px;
     border-radius: 7px;
   }
 
   .demo-select-icon {
     left: 8px;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
   }
 
   .demo-buttons-row {
     flex: 1.3 1 0;
+    height: 28px;
+    max-height: 28px;
     gap: 5px;
   }
 
   .btn-demo-start,
   .btn-demo-cancel {
-    font-size: 0.68rem;
-    padding: 4px 8px;
+    font-size: 0.66rem;
+    height: 28px;
+    padding: 2px 8px;
     border-radius: 7px;
   }
 
   .app-footer {
-    font-size: 0.6rem;
+    font-size: 0.58rem;
     padding: 0;
   }
 }
