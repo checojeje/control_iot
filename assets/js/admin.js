@@ -26,10 +26,10 @@ import {
   fetchAuthorizedDemosWithSteps,
   saveCompleteDemo,
   testCrossVehicleAccess,
-} from "./api.js?v=2";
+} from "./api.js?v=3";
 
-import { parseBackendTimestamp } from "./datetime.js?v=2";
-import { showErrorBanner, hideErrorBanner } from "./ui.js?v=2";
+import { parseBackendTimestamp } from "./datetime.js?v=3";
+import { showErrorBanner, hideErrorBanner } from "./ui.js?v=3";
 
 export class AdminManager {
   constructor({ onUnitChanged, onDemosUpdated }) {

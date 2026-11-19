@@ -15,7 +15,7 @@ import {
   fetchDemoMovements,
   sendMovement,
   startDemoOnBackend,
-} from "./api.js?v=2";
+} from "./api.js?v=3";
 
 import {
   switchActiveView,
@@ -30,12 +30,12 @@ import {
   setDemoProgressUI,
   setControlsDisabled,
   highlightActiveButton,
-} from "./ui.js?v=2";
+} from "./ui.js?v=3";
 
-import { VirtualJoystick } from "./joystick.js?v=2";
-import { VehicleWebSocket } from "./ws.js?v=2";
-import { MonitoringManager } from "./monitoring.js?v=2";
-import { AdminManager } from "./admin.js?v=2";
+import { VirtualJoystick } from "./joystick.js?v=3";
+import { VehicleWebSocket } from "./ws.js?v=3";
+import { MonitoringManager } from "./monitoring.js?v=3";
+import { AdminManager } from "./admin.js?v=3";
 
 const state = {
   activeView: "control",
@@ -432,13 +432,21 @@ function applyCommandCatalog(commands) {
 
   const secondaryCommands = state.commands.filter((c) => !excludedIds.has(Number(c.id)));
 
-  renderActionButtons(secondaryCommands, async (cmd) => {
-    if (state.isDemoRunning) {
-      showErrorBanner("No puedes enviar comandos manuales mientras se ejecuta una DEMO.");
-      return;
+  renderActionButtons(
+    secondaryCommands,
+    async (cmd) => {
+      if (state.isDemoRunning) {
+        showErrorBanner("No puedes enviar comandos manuales mientras se ejecuta una DEMO.");
+        return;
+      }
+      await dispatchVehicleCommand(cmd.id, cmd.nombre, "WEB_BOTON");
+    },
+    async () => {
+      if (state.isDemoRunning) return;
+      // Al soltar el botón táctil o clic, enviar automáticamente Detener igual que el joystick
+      await dispatchVehicleCommand(state.stopCommandId, "Detener", "WEB_BOTON");
     }
-    await dispatchVehicleCommand(cmd.id, cmd.nombre, "WEB_BOTON");
-  });
+  );
 }
 
 async function dispatchVehicleCommand(comandoId, nombreComando, origen = "WEB_CONTROL") {

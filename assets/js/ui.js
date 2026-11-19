@@ -122,9 +122,10 @@ export function updateJoystickTelemetry({ angle, distancePercent, directionLabel
 }
 
 /**
- * Renderiza dinámicamente los botones de funciones habilitados según el modelo/unidad seleccionada
+ * Renderiza dinámicamente los botones de funciones habilitados según el modelo/unidad seleccionada.
+ * Funciona como un control remoto RC real (mantener presionado = activo; soltar = envía Detener automáticamente).
  */
-export function renderActionButtons(commands, onCommandClick) {
+export function renderActionButtons(commands, onCommandPress, onCommandRelease) {
   const grid = document.getElementById("secondary-controls-grid");
   const badge = document.getElementById("catalog-status-badge");
   if (!grid) return;
@@ -161,6 +162,7 @@ export function renderActionButtons(commands, onCommandClick) {
     btn.className = `btn-action-cmd ${meta.variant} ${spanClass}`;
     btn.dataset.comandoId = cmd.id;
     btn.dataset.comandoNombre = cmd.nombre;
+    btn.style.touchAction = "none";
     btn.innerHTML = `
       <span class="action-icon-box"><i class="bi ${meta.icon}"></i></span>
       <span class="action-text-wrap">
@@ -169,7 +171,78 @@ export function renderActionButtons(commands, onCommandClick) {
       </span>
     `;
 
-    btn.addEventListener("click", () => onCommandClick(cmd, btn));
+    let isHolding = false;
+    let pressStartTime = 0;
+    let releaseTimer = null;
+
+    const handlePress = (e) => {
+      if (btn.disabled || isHolding) return;
+      if (e.type === "pointerdown" && e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+
+      if (releaseTimer) {
+        clearTimeout(releaseTimer);
+        releaseTimer = null;
+      }
+
+      isHolding = true;
+      btn.dataset.holding = "true";
+      pressStartTime = Date.now();
+      btn.classList.add("active-pulse");
+
+      if (e.pointerId !== undefined) {
+        try {
+          btn.setPointerCapture(e.pointerId);
+        } catch (_) {
+          // Ignorar
+        }
+      }
+
+      if (typeof onCommandPress === "function") {
+        onCommandPress(cmd, btn);
+      }
+    };
+
+    const handleRelease = (e) => {
+      if (!isHolding) return;
+      if (e) e.preventDefault();
+      isHolding = false;
+
+      // Garantizar un pulso mínimo de 220 ms en toques rápidos (ej. Luz, Sonido, Velocidad)
+      // para que el optoacoplador del control físico alcance a accionar y soltar limpiamente
+      const elapsed = Date.now() - pressStartTime;
+      const remainingPulseMs = Math.max(0, 220 - elapsed);
+
+      releaseTimer = setTimeout(() => {
+        releaseTimer = null;
+        delete btn.dataset.holding;
+        btn.classList.remove("active-pulse");
+        if (typeof onCommandRelease === "function") {
+          onCommandRelease(cmd, btn);
+        }
+      }, remainingPulseMs);
+    };
+
+    btn.addEventListener("pointerdown", handlePress);
+    btn.addEventListener("pointerup", handleRelease);
+    btn.addEventListener("pointercancel", handleRelease);
+    btn.addEventListener("lostpointercapture", handleRelease);
+
+    // Accesibilidad por teclado (Espacio / Enter)
+    btn.addEventListener("keydown", (e) => {
+      if ((e.code === "Space" || e.code === "Enter") && !e.repeat) {
+        handlePress(e);
+      }
+    });
+    btn.addEventListener("keyup", (e) => {
+      if (e.code === "Space" || e.code === "Enter") {
+        handleRelease(e);
+      }
+    });
+    btn.addEventListener("blur", () => {
+      if (isHolding) handleRelease();
+    });
+
     grid.appendChild(btn);
   });
 }
@@ -179,8 +252,12 @@ export function highlightActiveButton(comandoId) {
   buttons.forEach((btn) => {
     if (Number(btn.dataset.comandoId) === Number(comandoId)) {
       btn.classList.add("active-pulse");
-      setTimeout(() => btn.classList.remove("active-pulse"), 550);
-    } else {
+      setTimeout(() => {
+        if (!btn.dataset.holding) {
+          btn.classList.remove("active-pulse");
+        }
+      }, 550);
+    } else if (!btn.dataset.holding) {
       btn.classList.remove("active-pulse");
     }
   });

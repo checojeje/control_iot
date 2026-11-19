@@ -11,8 +11,8 @@ import {
   CONFIG,
   fetchVehicleLastState,
   fetchVehicleHistory,
-} from "./api.js?v=2";
-import { parseBackendTimestamp } from "./datetime.js?v=2";
+} from "./api.js?v=3";
+import { parseBackendTimestamp } from "./datetime.js?v=3";
 
 const MOVEMENT_VISUALS = {
   1: { icon: "bi-arrow-up-circle-fill", tone: "tone-cyan", label: "Avanzar" },
