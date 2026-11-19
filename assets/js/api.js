@@ -1,23 +1,66 @@
 /**
  * @file api.js
- * @description Cliente REST con Fetch y async/await para CONTROL (4.1) y MONITOREO (4.2)
- * Consume los 21 servicios en AWS: https://api-iot-sergio.duckdns.org
+ * @description Cliente REST con Fetch y async/await para CONTROL (4.1), MONITOREO (4.2) y ADMINISTRACIÓN (4.3).
+ * Incluye autenticación Bearer, encabezados de rol, cambio dinámico de unidad activa y manejo de códigos 401/403/409.
  */
+
+const isLocalHost =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost");
 
 export const CONFIG = {
   API_BASE_URL: "https://api-iot-sergio.duckdns.org",
-  WS_URL: "wss://api-iot-sergio.duckdns.org/ws/vehiculo/1",
+  LOCAL_FALLBACK_URL: "http://127.0.0.1:8000",
+  WS_BASE_URL: "wss://api-iot-sergio.duckdns.org/ws/vehiculo",
+  LOCAL_WS_BASE_URL: "ws://127.0.0.1:8000/ws/vehiculo",
   VEHICULO_ID: 1,
   MAX_HISTORY_ROWS: 10,
   TIMEOUT_MS: 10000,
+  AUTH_TOKEN: null,
+  CURRENT_ROLE: "ADMIN", // ADMIN | USUARIO | INVITADO
+  CURRENT_USER: {
+    id_usuario: 1,
+    nombre: "Jesús Sergio Quiroz (Admin Empresa)",
+    email: "admin@iot.com",
+    rol: "ADMIN",
+  },
+  GUEST_SESSION: null,
+  USE_LOCAL_BACKEND: false,
 };
 
 // Cola secuencial para garantizar orden de movimientos sin abortar peticiones en vuelo
 let movementQueuePromise = Promise.resolve();
 
 /**
- * Realiza una petición HTTP con timeout controlado y validación JSON.
- * Evita enviar Content-Type en peticiones GET para no forzar preflights CORS innecesarios.
+ * Cambia la unidad física activa para CONTROL, MONITOREO y WebSocket
+ */
+export function setActiveVehicleId(newId) {
+  const num = Number(newId);
+  if (Number.isInteger(num) && num > 0) {
+    CONFIG.VEHICULO_ID = num;
+  }
+}
+
+/**
+ * Obtiene la URL WebSocket de la unidad actualmente seleccionada
+ */
+export function getActiveWsUrl() {
+  const base = CONFIG.USE_LOCAL_BACKEND ? CONFIG.LOCAL_WS_BASE_URL : CONFIG.WS_BASE_URL;
+  return `${base}/${CONFIG.VEHICULO_ID}`;
+}
+
+/**
+ * Configura la sesión autenticada actual (Admin, Usuario o Invitado)
+ */
+export function setAuthSession({ token = null, user = null, role = "INVITADO", guestSession = null }) {
+  CONFIG.AUTH_TOKEN = token;
+  CONFIG.CURRENT_ROLE = role;
+  CONFIG.CURRENT_USER = user;
+  CONFIG.GUEST_SESSION = guestSession;
+}
+
+/**
+ * Realiza una petición HTTP con timeout controlado, autenticación RBAC y validación JSON.
  */
 async function fetchWithTimeout(endpoint, options = {}, customSignal = null) {
   const controller = new AbortController();
@@ -28,21 +71,51 @@ async function fetchWithTimeout(endpoint, options = {}, customSignal = null) {
   }
 
   const method = (options.method || "GET").toUpperCase();
+  const authHeaders = {};
+  if (CONFIG.AUTH_TOKEN) {
+    authHeaders["Authorization"] = `Bearer ${CONFIG.AUTH_TOKEN}`;
+  }
+  if (CONFIG.CURRENT_ROLE) {
+    authHeaders["X-Session-Role"] = CONFIG.CURRENT_ROLE;
+  }
+
   const headers = {
     Accept: "application/json",
     ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...authHeaders,
     ...(options.headers || {}),
   };
 
+  const primaryBase = CONFIG.USE_LOCAL_BACKEND ? CONFIG.LOCAL_FALLBACK_URL : CONFIG.API_BASE_URL;
+
   try {
-    const response = await fetch(`${CONFIG.API_BASE_URL}${endpoint}`, {
-      ...options,
-      method,
-      mode: "cors",
-      cache: "no-store",
-      signal: controller.signal,
-      headers,
-    });
+    let response;
+    try {
+      response = await fetch(`${primaryBase}${endpoint}`, {
+        ...options,
+        method,
+        mode: "cors",
+        cache: "no-store",
+        signal: controller.signal,
+        headers,
+      });
+    } catch (networkErr) {
+      // Si estamos en localhost y el servidor remoto AWS está apagado, usar FastAPI local en 127.0.0.1:8000
+      if (isLocalHost && !CONFIG.USE_LOCAL_BACKEND) {
+        response = await fetch(`${CONFIG.LOCAL_FALLBACK_URL}${endpoint}`, {
+          ...options,
+          method,
+          mode: "cors",
+          cache: "no-store",
+          signal: controller.signal,
+          headers,
+        });
+        CONFIG.USE_LOCAL_BACKEND = true;
+      } else {
+        throw networkErr;
+      }
+    }
+
     clearTimeout(timeoutId);
 
     let data = null;
@@ -78,10 +151,9 @@ async function fetchWithTimeout(endpoint, options = {}, customSignal = null) {
   }
 }
 
-/**
- * 1. Verifica disponibilidad del servidor AWS (21 APIs)
- * GET /openapi.json
- */
+/* ==========================================================================
+   SERVICIOS DE SALUD E INFRAESTRUCTURA (4.1 / 4.2 / 4.3)
+   ========================================================================== */
 export async function checkApiHealth() {
   try {
     const data = await fetchWithTimeout(`/openapi.json`);
@@ -92,10 +164,6 @@ export async function checkApiHealth() {
   }
 }
 
-/**
- * 2. Verifica disponibilidad de Amazon RDS consultando el estado real del vehículo
- * GET /api/vehiculos/1/estado -> { id_vehiculo: 1, vehiculo: "Excavadora IoT", id_comando: 13, comando: "Detener", codigo: 13, conectado: 1, fecha_actualizacion: "..." }
- */
 export async function checkRdsHealth() {
   try {
     const data = await fetchWithTimeout(`/api/vehiculos/${CONFIG.VEHICULO_ID}/estado`);
@@ -106,55 +174,44 @@ export async function checkRdsHealth() {
     );
     return { ok, data };
   } catch (err) {
+    // Si devuelve 403 por cambio de rol, RDS sí está disponible (respondió desde BD)
+    if (err?.status === 403 || err?.status === 401) {
+      return { ok: true, restricted: true };
+    }
     return { ok: false, error: err?.message || "Sin verificar", status: err?.status };
   }
 }
 
-/**
- * 3. Obtiene información del vehículo
- * GET /api/vehiculos/1
- */
-export async function fetchVehicleInfo() {
-  return await fetchWithTimeout(`/api/vehiculos/${CONFIG.VEHICULO_ID}`);
+/* ==========================================================================
+   SERVICIOS DE CONTROL Y MONITOREO POR UNIDAD (4.1 / 4.2)
+   ========================================================================== */
+export async function fetchVehicleInfo(vehiculoId = CONFIG.VEHICULO_ID) {
+  return await fetchWithTimeout(`/api/vehiculos/${vehiculoId}`);
 }
 
-/**
- * 4. Obtiene el último estado reportado del vehículo en Amazon RDS
- * GET /api/vehiculos/1/estado
- */
-export async function fetchVehicleLastState(customSignal = null) {
+export async function fetchVehicleLastState(customSignal = null, vehiculoId = CONFIG.VEHICULO_ID) {
   return await fetchWithTimeout(
-    `/api/vehiculos/${CONFIG.VEHICULO_ID}/estado`,
+    `/api/vehiculos/${vehiculoId}/estado`,
     { method: "GET" },
     customSignal
   );
 }
 
-/**
- * 5. Obtiene el historial de los últimos 10 movimientos individuales persistidos en Amazon RDS
- * GET /api/vehiculos/1/historial -> { vehiculo_id: 1, historial: [ { id_historial, id_vehiculo, comando, codigo, fecha_hora, origen }, ... ] }
- */
-export async function fetchVehicleHistory(customSignal = null) {
+export async function fetchVehicleHistory(customSignal = null, vehiculoId = CONFIG.VEHICULO_ID) {
   const data = await fetchWithTimeout(
-    `/api/vehiculos/${CONFIG.VEHICULO_ID}/historial`,
+    `/api/vehiculos/${vehiculoId}/historial`,
     { method: "GET" },
     customSignal
   );
-  const rawList = Array.isArray(data)
+  return Array.isArray(data)
     ? data
     : Array.isArray(data?.historial)
       ? data.historial
       : [];
-
-  return rawList;
 }
 
-/**
- * 6. Obtiene el catálogo real de comandos del vehículo y normaliza id_comando -> id
- * GET /api/vehiculos/1/comandos
- */
-export async function fetchVehicleCommands() {
-  const data = await fetchWithTimeout(`/api/vehiculos/${CONFIG.VEHICULO_ID}/comandos`);
+export async function fetchVehicleCommands(vehiculoId = CONFIG.VEHICULO_ID) {
+  const data = await fetchWithTimeout(`/api/vehiculos/${vehiculoId}/comandos`);
   const list = Array.isArray(data)
     ? data
     : Array.isArray(data?.comandos)
@@ -170,12 +227,8 @@ export async function fetchVehicleCommands() {
   }));
 }
 
-/**
- * 7. Obtiene las secuencias DEMO disponibles del vehículo
- * GET /api/vehiculos/1/demos
- */
-export async function fetchDemos() {
-  const data = await fetchWithTimeout(`/api/vehiculos/${CONFIG.VEHICULO_ID}/demos`);
+export async function fetchDemos(vehiculoId = CONFIG.VEHICULO_ID) {
+  const data = await fetchWithTimeout(`/api/vehiculos/${vehiculoId}/demos`);
   const list = Array.isArray(data)
     ? data
     : Array.isArray(data?.demos)
@@ -187,13 +240,10 @@ export async function fetchDemos() {
     id: Number(demo.id_demo ?? demo.id),
     nombre: String(demo.nombre || "Demo principal"),
     descripcion: demo.descripcion ? String(demo.descripcion) : "",
+    tipo_demo: demo.tipo_demo || "EMPRESA",
   }));
 }
 
-/**
- * 8. Obtiene los movimientos de una DEMO específica
- * GET /api/demos/{demoId}/movimientos
- */
 export async function fetchDemoMovements(demoId) {
   const data = await fetchWithTimeout(`/api/demos/${demoId}/movimientos`);
   return Array.isArray(data)
@@ -203,13 +253,9 @@ export async function fetchDemoMovements(demoId) {
       : [];
 }
 
-/**
- * 9. Envía un movimiento individual al vehículo en orden secuencial
- * POST /api/vehiculos/movimiento -> { vehiculo_id: 1, comando_id: 1..13, origen }
- */
-export async function sendMovement(comandoId, origen = "WEB_CONTROL") {
+export async function sendMovement(comandoId, origen = "WEB_CONTROL", vehiculoId = CONFIG.VEHICULO_ID) {
   const payload = {
-    vehiculo_id: CONFIG.VEHICULO_ID,
+    vehiculo_id: Number(vehiculoId),
     comando_id: Number(comandoId),
     origen: String(origen).slice(0, 50),
   };
@@ -225,16 +271,135 @@ export async function sendMovement(comandoId, origen = "WEB_CONTROL") {
   return await task;
 }
 
-/**
- * 10. Inicia la ejecución de una secuencia DEMO en el backend
- * POST /api/vehiculos/demo -> { vehiculo_id: 1, demo_id: 1 }
- */
-export async function startDemoOnBackend(demoId) {
+export async function startDemoOnBackend(demoId, vehiculoId = CONFIG.VEHICULO_ID) {
   return await fetchWithTimeout(`/api/vehiculos/demo`, {
     method: "POST",
     body: JSON.stringify({
-      vehiculo_id: CONFIG.VEHICULO_ID,
+      vehiculo_id: Number(vehiculoId),
       demo_id: Number(demoId),
     }),
+  });
+}
+
+/* ==========================================================================
+   SERVICIOS DE AUTENTICACIÓN, ROLES Y ADMINISTRACIÓN COMERCIAL (4.3)
+   ========================================================================== */
+export async function loginUser(email, password) {
+  return await fetchWithTimeout(`/api/auth/login`, {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function fetchCurrentProfile() {
+  return await fetchWithTimeout(`/api/auth/me`, { method: "GET" });
+}
+
+export async function requestGuestSession(idVehiculo, nombreInvitado = "Prospecto Comercial", duracionSegundos = 180) {
+  return await fetchWithTimeout(`/api/auth/sesion-invitado`, {
+    method: "POST",
+    body: JSON.stringify({
+      id_vehiculo: Number(idVehiculo),
+      nombre_invitado: nombreInvitado,
+      duracion_segundos: Number(duracionSegundos),
+    }),
+  });
+}
+
+export async function releaseGuestSession() {
+  return await fetchWithTimeout(`/api/auth/sesion-invitado/liberar`, {
+    method: "POST",
+  });
+}
+
+export async function fetchAdminDashboard() {
+  return await fetchWithTimeout(`/api/admin/dashboard`, { method: "GET" });
+}
+
+export async function fetchCommercialModels() {
+  const data = await fetchWithTimeout(`/api/admin/modelos`, { method: "GET" });
+  return Array.isArray(data?.modelos) ? data.modelos : [];
+}
+
+export async function createCommercialModel(payload) {
+  return await fetchWithTimeout(`/api/admin/modelos`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchAuthorizedUnits() {
+  const data = await fetchWithTimeout(`/api/admin/unidades`, { method: "GET" });
+  return Array.isArray(data?.unidades) ? data.unidades : [];
+}
+
+export async function createPhysicalUnit(payload) {
+  return await fetchWithTimeout(`/api/admin/unidades`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updatePhysicalUnit(idVehiculo, payload) {
+  return await fetchWithTimeout(`/api/admin/unidades/${idVehiculo}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function assignUnitOwner(idVehiculo, idPropietario, estadoComercial = "VENDIDO") {
+  return await fetchWithTimeout(`/api/admin/unidades/${idVehiculo}/asignar`, {
+    method: "POST",
+    body: JSON.stringify({
+      id_propietario: idPropietario ? Number(idPropietario) : null,
+      estado_comercial: estadoComercial,
+    }),
+  });
+}
+
+export async function toggleUnitSupportConsent(idVehiculo, soporteAutorizado) {
+  return await fetchWithTimeout(`/api/unidades/${idVehiculo}/soporte`, {
+    method: "POST",
+    body: JSON.stringify({ soporte_autorizado: Boolean(soporteAutorizado) }),
+  });
+}
+
+export async function fetchClients() {
+  const data = await fetchWithTimeout(`/api/admin/clientes`, { method: "GET" });
+  return Array.isArray(data?.clientes) ? data.clientes : [];
+}
+
+export async function createClient(payload) {
+  return await fetchWithTimeout(`/api/admin/clientes`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchAuditLog() {
+  const data = await fetchWithTimeout(`/api/admin/auditoria`, { method: "GET" });
+  return Array.isArray(data?.auditoria) ? data.auditoria : [];
+}
+
+export async function fetchAuthorizedDemosWithSteps(idVehiculo = CONFIG.VEHICULO_ID) {
+  const data = await fetchWithTimeout(`/api/vehiculos/${idVehiculo}/demos-autorizadas`, {
+    method: "GET",
+  });
+  return Array.isArray(data?.demos) ? data.demos : [];
+}
+
+export async function saveCompleteDemo(payload) {
+  return await fetchWithTimeout(`/api/demos/guardar-completa`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Prueba explícita de acceso a un recurso específico (para validar rechazos 401/403 en P12/P13)
+ */
+export async function testCrossVehicleAccess(targetVehiculoId) {
+  return await fetchWithTimeout(`/api/vehiculos/${targetVehiculoId}/estado`, {
+    method: "GET",
   });
 }

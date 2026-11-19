@@ -1,10 +1,12 @@
 /**
  * @file app.js
- * @description Orquestador principal de la aplicación integrada CONTROL (4.1) + MONITOREO (4.2).
- * Comparte una única conexión WebSocket (WSS) y el cliente REST hacia AWS y Amazon RDS.
+ * @description Orquestador principal de la plataforma comercial multiusuario:
+ * CONTROL (4.1) + MONITOREO (4.2) + ADMINISTRACIÓN (4.3).
  */
 
 import {
+  CONFIG,
+  setActiveVehicleId,
   checkApiHealth,
   checkRdsHealth,
   fetchVehicleInfo,
@@ -13,7 +15,7 @@ import {
   fetchDemoMovements,
   sendMovement,
   startDemoOnBackend,
-} from "./api.js?v=2";
+} from "./api.js?v=1";
 
 import {
   switchActiveView,
@@ -28,11 +30,12 @@ import {
   setDemoProgressUI,
   setControlsDisabled,
   highlightActiveButton,
-} from "./ui.js?v=2";
+} from "./ui.js?v=1";
 
-import { VirtualJoystick } from "./joystick.js?v=2";
-import { VehicleWebSocket } from "./ws.js?v=2";
-import { MonitoringManager } from "./monitoring.js?v=2";
+import { VirtualJoystick } from "./joystick.js?v=1";
+import { VehicleWebSocket } from "./ws.js?v=1";
+import { MonitoringManager } from "./monitoring.js?v=1";
+import { AdminManager } from "./admin.js?v=1";
 
 const state = {
   activeView: "control",
@@ -44,6 +47,7 @@ const state = {
   joystick: null,
   wsClient: null,
   monitoring: null,
+  admin: null,
   hasVerifiedOnce: false,
 };
 
@@ -63,9 +67,6 @@ const FALLBACK_CATALOG = [
   { id: 13, codigo: "13", nombre: "Detener", activo: true },
 ];
 
-/**
- * Inicialización al cargar el DOM
- */
 document.addEventListener("DOMContentLoaded", async () => {
   initNavigationAndButtons();
   initJoystickControl();
@@ -82,26 +83,51 @@ document.addEventListener("DOMContentLoaded", async () => {
     },
   });
 
-  // Iniciar conexión WSS única compartida entre CONTROL y MONITOREO
+  // Inicializar módulo de ADMINISTRACIÓN (4.3)
+  state.admin = new AdminManager({
+    onUnitChanged: async (newVehicleId) => {
+      await handleActiveUnitSwitch(newVehicleId);
+    },
+    onDemosUpdated: async () => {
+      await loadCatalogAndDemos();
+    },
+  });
+
+  // Iniciar conexión WSS única compartida entre las 3 vistas
   initSharedWebSocketChannel();
   initLifecycleListeners();
 
-  // Carga inicial paralela: Salud AWS/RDS + Catálogo CONTROL + Estado e Historial MONITOREO
+  // Inicializar sesión y datos de las 3 vistas
+  await state.admin.init();
   await Promise.all([
     verifyBackendAndDatabaseHealth(false),
     loadCatalogAndDemos(),
     state.monitoring.syncFromBackend({ reason: "CARGA_INICIAL", silent: false }),
   ]);
 
-  // Verificación periódica moderada de disponibilidad API/RDS (sin reemplazar WSS para el historial)
   setInterval(() => {
     verifyBackendAndDatabaseHealth(true);
   }, 25000);
 });
 
 /**
- * Reconexión y resincronización al recuperar red o volver a la pestaña
+ * Cambia la unidad física activa en toda la aplicación (CONTROL, MONITOREO y suscripción WSS)
  */
+async function handleActiveUnitSwitch(newVehicleId) {
+  setActiveVehicleId(newVehicleId);
+  const unitSel = document.getElementById("active-unit-select");
+  if (unitSel) unitSel.value = String(newVehicleId);
+
+  // Cancelar suscripción WSS del vehículo anterior y conectar al nuevo
+  state.wsClient?.switchVehicle(newVehicleId);
+
+  // Actualizar catálogo de botones en CONTROL y estado/historial en MONITOREO
+  await Promise.all([
+    loadCatalogAndDemos(),
+    state.monitoring?.syncFromBackend({ reason: "CAMBIO_UNIDAD", silent: false }),
+  ]);
+}
+
 function initLifecycleListeners() {
   window.addEventListener("online", () => {
     hideErrorBanner();
@@ -123,12 +149,10 @@ function initLifecycleListeners() {
   });
 }
 
-/**
- * Configura las pestañas CONTROL / MONITOREO y los botones principales
- */
 function initNavigationAndButtons() {
   const tabControl = document.getElementById("tab-btn-control");
   const tabMonitoreo = document.getElementById("tab-btn-monitoreo");
+  const tabAdministracion = document.getElementById("tab-btn-administracion");
 
   if (tabControl) {
     tabControl.addEventListener("click", () => {
@@ -141,8 +165,15 @@ function initNavigationAndButtons() {
     tabMonitoreo.addEventListener("click", () => {
       state.activeView = "monitoreo";
       switchActiveView("monitoreo");
-      // Resincronizar estado e historial al entrar en MONITOREO para garantizar consistencia
       state.monitoring?.syncFromBackend({ reason: "ABRIR_MONITOREO", silent: true });
+    });
+  }
+
+  if (tabAdministracion) {
+    tabAdministracion.addEventListener("click", () => {
+      state.activeView = "administracion";
+      switchActiveView("administracion");
+      state.admin?.refreshAllAdminData();
     });
   }
 
@@ -164,6 +195,7 @@ function initNavigationAndButtons() {
         verifyBackendAndDatabaseHealth(false),
         loadCatalogAndDemos(),
         state.monitoring?.syncFromBackend({ reason: "BOTON_SINCRONIZAR", silent: false }),
+        state.admin?.refreshAllAdminData(),
       ]);
     });
   }
@@ -196,9 +228,6 @@ function initNavigationAndButtons() {
   }
 }
 
-/**
- * Configura el joystick virtual
- */
 function initJoystickControl() {
   const baseEl = document.getElementById("joystick-base");
   const handleEl = document.getElementById("joystick-handle");
@@ -224,16 +253,12 @@ function getCommandNameById(comandoId) {
   return found ? found.nombre : "En espera";
 }
 
-/**
- * Inicia el canal WebSocket único compartido entre CONTROL y MONITOREO
- */
 function initSharedWebSocketChannel() {
   state.wsClient = new VehicleWebSocket({
     onOpenCallback: () => {
       setIndicatorState("ws", "online", "En línea");
     },
     onReconnectCallback: () => {
-      // Regla 7.4: Al recuperar conexión WSS, volver a consultar estado y los 10 movimientos desde la API
       state.monitoring?.syncFromBackend({ reason: "RECONEXION_WSS", silent: true });
     },
     onEventCallback: (payload) => {
@@ -244,14 +269,12 @@ function initSharedWebSocketChannel() {
         return;
       }
 
-      // Actualizar vista MONITOREO en tiempo real ante cualquier evento del vehículo
       state.monitoring?.handleRealtimeWsEvent(payload);
 
       if (state.activeView !== "monitoreo") {
         notifyUnreadMonitoringEvent();
       }
 
-      // Actualizar indicadores de la vista CONTROL
       if (evento === "NUEVO_MOVIMIENTO") {
         const cmdId = Number(payload.comando_id ?? payload.datos?.comando_id);
         const nombreCmd = payload.datos?.comando || getCommandNameById(cmdId);
@@ -295,9 +318,6 @@ function initSharedWebSocketChannel() {
   state.wsClient.connect();
 }
 
-/**
- * Comprueba de forma independiente la salud de API AWS (21 servicios) y el diagnóstico de Amazon RDS
- */
 async function verifyBackendAndDatabaseHealth(silent = false) {
   if (!silent && !state.hasVerifiedOnce) {
     setIndicatorState("api", "checking", "Comprobando");
@@ -341,33 +361,30 @@ async function verifyBackendAndDatabaseHealth(silent = false) {
   return false;
 }
 
-/**
- * Carga información del vehículo, su catálogo de comandos y las DEMO disponibles
- */
 async function loadCatalogAndDemos() {
   try {
-    const vehicle = await fetchVehicleInfo();
+    const vehicle = await fetchVehicleInfo(CONFIG.VEHICULO_ID);
     if (vehicle && vehicle.nombre) {
       const titleEl = document.getElementById("vehicle-title");
       if (titleEl) titleEl.textContent = String(vehicle.nombre).toUpperCase();
     }
   } catch (_) {
-    // Mantener título por defecto
+    // Mantener título
   }
 
   try {
-    const commands = await fetchVehicleCommands();
+    const commands = await fetchVehicleCommands(CONFIG.VEHICULO_ID);
     if (Array.isArray(commands) && commands.length > 0) {
       applyCommandCatalog(commands);
       setIndicatorState("api", "online", "Disponible");
       setIndicatorState("rds", "online", "Disponible");
     }
   } catch (_) {
-    // Mantener catálogo base
+    // Mantener catálogo actual
   }
 
   try {
-    const demos = await fetchDemos();
+    const demos = await fetchDemos(CONFIG.VEHICULO_ID);
     if (Array.isArray(demos) && demos.length > 0) {
       populateDemoSelect(demos);
     } else {
@@ -378,9 +395,6 @@ async function loadCatalogAndDemos() {
   }
 }
 
-/**
- * Aplica el catálogo de comandos separando los 5 del joystick de los controles secundarios
- */
 function applyCommandCatalog(commands) {
   state.commands = commands.filter((c) => c.activo !== false);
 
@@ -395,8 +409,8 @@ function applyCommandCatalog(commands) {
 
   const cmdUp = findCmd(["avanzar", "adelante"], 1);
   const cmdDown = findCmd(["retroceder", "atras"], 2);
-  const cmdRight = findCmd(["girar derecha"], 5);
-  const cmdLeft = findCmd(["girar izquierda"], 6);
+  const cmdRight = findCmd(["girar derecha", "girar_derecha"], 5);
+  const cmdLeft = findCmd(["girar izquierda", "girar_izquierda"], 6);
   const cmdStop = findCmd(["detener", "stop", "paro"], 13);
   const cmdDemo = findCmd(["demo"], 12);
 
@@ -427,9 +441,6 @@ function applyCommandCatalog(commands) {
   });
 }
 
-/**
- * Envía un comando de movimiento individual al backend y dispara reconciliación en MONITOREO
- */
 async function dispatchVehicleCommand(comandoId, nombreComando, origen = "WEB_CONTROL") {
   hideErrorBanner();
   const isStop = Number(comandoId) === state.stopCommandId;
@@ -438,23 +449,19 @@ async function dispatchVehicleCommand(comandoId, nombreComando, origen = "WEB_CO
   highlightActiveButton(comandoId);
 
   try {
-    await sendMovement(comandoId, origen);
+    await sendMovement(comandoId, origen, CONFIG.VEHICULO_ID);
     setIndicatorState("api", "online", "Disponible");
     setIndicatorState("rds", "online", "Disponible");
-    // Reconciliar estado e historial confirmado en RDS
     state.monitoring?.scheduleRestReconciliation("COMANDO_LOCAL_CONFIRMADO");
   } catch (err) {
     const msg = err?.message || "";
     if (!msg || msg === "SUPERSEDED" || msg === "undefined") {
       return;
     }
-    showErrorBanner(`No se pudo enviar «${nombreComando}»: ${msg}`);
+    showErrorBanner(`Operación rechazada (${err?.status || "Error"}): ${msg}`);
   }
 }
 
-/**
- * DETENCIÓN PRIORITARIA: Cancela cualquier DEMO en curso, centra el joystick y envía DETENER
- */
 async function executePriorityStop(motivo = "DETENCIÓN PRIORITARIA") {
   hideErrorBanner();
 
@@ -478,9 +485,6 @@ async function executePriorityStop(motivo = "DETENCIÓN PRIORITARIA") {
   await dispatchVehicleCommand(state.stopCommandId, "Detener", `PRIORIDAD_${motivo}`);
 }
 
-/**
- * Ejecuta una secuencia DEMO en el backend (/api/vehiculos/demo) sin contaminar el historial individual
- */
 async function runDemoSequence(demoId) {
   if (state.isDemoRunning) {
     showErrorBanner("Ya hay una secuencia DEMO en ejecución.");
@@ -500,7 +504,7 @@ async function runDemoSequence(demoId) {
   });
 
   try {
-    const backendDemoPromise = startDemoOnBackend(demoId);
+    const backendDemoPromise = startDemoOnBackend(demoId, CONFIG.VEHICULO_ID);
     const steps = await fetchDemoMovements(demoId).catch(() => []);
 
     if (Array.isArray(steps) && steps.length > 0) {

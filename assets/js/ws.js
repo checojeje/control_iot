@@ -1,15 +1,16 @@
 /**
  * @file ws.js
- * @description Cliente WebSocket (WSS) compartido por CONTROL y MONITOREO.
- * Filtra eventos de otros vehículos, mantiene heartbeat y dispara resincronización tras reconexión.
+ * @description Cliente WebSocket (WSS) compartido por CONTROL, MONITOREO y ADMINISTRACIÓN.
+ * Soporta cambio dinámico de unidad física cancelando la suscripción anterior.
  */
 
-import { CONFIG } from "./api.js?v=2";
-import { setIndicatorState } from "./ui.js?v=2";
+import { CONFIG, getActiveWsUrl } from "./api.js?v=1";
+import { setIndicatorState } from "./ui.js?v=1";
 
 export class VehicleWebSocket {
   constructor({ onEventCallback, onOpenCallback, onReconnectCallback }) {
     this.socket = null;
+    this.subscribedVehicleId = CONFIG.VEHICULO_ID;
     this.onEventCallback = onEventCallback;
     this.onOpenCallback = onOpenCallback;
     this.onReconnectCallback = onReconnectCallback;
@@ -24,6 +25,7 @@ export class VehicleWebSocket {
   connect() {
     this.isManualClose = false;
     this.clearReconnectTimer();
+    this.subscribedVehicleId = CONFIG.VEHICULO_ID;
 
     if (
       this.socket &&
@@ -41,7 +43,7 @@ export class VehicleWebSocket {
 
     let currentSocket;
     try {
-      currentSocket = new WebSocket(CONFIG.WS_URL);
+      currentSocket = new WebSocket(getActiveWsUrl());
       this.socket = currentSocket;
     } catch (_) {
       setIndicatorState("ws", "offline", "Desconectado");
@@ -93,6 +95,18 @@ export class VehicleWebSocket {
     });
   }
 
+  /**
+   * Cancela la suscripción WSS de la unidad anterior y abre canal hacia la nueva unidad seleccionada
+   */
+  switchVehicle(newVehicleId) {
+    const numericId = Number(newVehicleId);
+    if (this.subscribedVehicleId === numericId && this.socket?.readyState === WebSocket.OPEN) {
+      return;
+    }
+    this.subscribedVehicleId = numericId;
+    this.reconnectNow();
+  }
+
   startHeartbeat() {
     this.stopHeartbeat();
     this.heartbeatTimer = setInterval(() => {
@@ -123,7 +137,7 @@ export class VehicleWebSocket {
   handleIncomingPayload(payload) {
     if (!payload || typeof payload !== "object") return;
 
-    // Filtrar estrictamente eventos que pertenezcan a otro vehículo si vehiculo_id viene en el payload
+    // Filtrar estrictamente eventos que no correspondan a la unidad actualmente suscrita
     if (
       payload.vehiculo_id !== undefined &&
       Number(payload.vehiculo_id) !== Number(CONFIG.VEHICULO_ID)
@@ -159,7 +173,7 @@ export class VehicleWebSocket {
     this.socket = null;
     if (oldSocket) {
       try {
-        oldSocket.close(1000, "Reconexión manual");
+        oldSocket.close(1000, "Cambio de unidad o reconexión manual");
       } catch (_) {
         // Ignorar
       }

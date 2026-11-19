@@ -1,7 +1,7 @@
 /**
  * @file ui.js
- * @description Gestión visual de navegación (CONTROL / MONITOREO), 3 indicadores,
- * botones táctiles del catálogo y progreso de secuencias DEMO.
+ * @description Gestión visual de navegación entre las 3 vistas (CONTROL / MONITOREO / ADMINISTRACIÓN),
+ * 3 indicadores de infraestructura, botones táctiles dinámicos por unidad y progreso de DEMO.
  */
 
 const ICON_MAP = {
@@ -9,46 +9,48 @@ const ICON_MAP = {
   CABINA_DER: { icon: "bi-arrow-clockwise", variant: "action-cyan", category: "Giro de torreta" },
   BAJAR_GARRA: { icon: "bi-box-arrow-in-down", variant: "action-amber", category: "Brazo hidráulico" },
   SUBIR_GARRA: { icon: "bi-box-arrow-up", variant: "action-amber", category: "Brazo hidráulico" },
+  BAJAR_BRAZO: { icon: "bi-box-arrow-in-down", variant: "action-amber", category: "Brazo hidráulico" },
+  SUBIR_BRAZO: { icon: "bi-box-arrow-up", variant: "action-amber", category: "Brazo hidráulico" },
+  ABRIR_PALA: { icon: "bi-arrows-angle-expand", variant: "action-emerald", category: "Pala frontal" },
+  CERRAR_PALA: { icon: "bi-arrows-angle-contract", variant: "action-purple", category: "Pala frontal" },
   LUZ: { icon: "bi-lightbulb-fill", variant: "action-emerald", category: "Sistema óptico" },
   SONIDO: { icon: "bi-volume-up-fill", variant: "action-purple", category: "Alerta acústica" },
   VELOCIDAD: { icon: "bi-speedometer2", variant: "action-blue", category: "Potencia motor" },
 };
 
 /**
- * Alterna entre la vista CONTROL y la vista MONITOREO sin recargar la página
- * @param {'control'|'monitoreo'} viewName
+ * Alterna entre las 3 vistas principales: CONTROL (4.1), MONITOREO (4.2) y ADMINISTRACIÓN (4.3)
+ * @param {'control'|'monitoreo'|'administracion'} viewName
  */
 export function switchActiveView(viewName) {
-  const viewControl = document.getElementById("view-control");
-  const viewMonitoreo = document.getElementById("view-monitoreo");
-  const btnControl = document.getElementById("tab-btn-control");
-  const btnMonitoreo = document.getElementById("tab-btn-monitoreo");
+  const views = {
+    control: document.getElementById("view-control"),
+    monitoreo: document.getElementById("view-monitoreo"),
+    administracion: document.getElementById("view-administracion"),
+  };
+  const buttons = {
+    control: document.getElementById("tab-btn-control"),
+    monitoreo: document.getElementById("tab-btn-monitoreo"),
+    administracion: document.getElementById("tab-btn-administracion"),
+  };
   const unreadDot = document.getElementById("mon-unread-dot");
 
-  const isMonitoreo = viewName === "monitoreo";
+  Object.keys(views).forEach((key) => {
+    const isTarget = key === viewName;
+    if (views[key]) {
+      views[key].classList.toggle("d-none", !isTarget);
+    }
+    if (buttons[key]) {
+      buttons[key].classList.toggle("active", isTarget);
+      buttons[key].setAttribute("aria-selected", String(isTarget));
+    }
+  });
 
-  if (viewControl) {
-    viewControl.classList.toggle("d-none", isMonitoreo);
-  }
-  if (viewMonitoreo) {
-    viewMonitoreo.classList.toggle("d-none", !isMonitoreo);
-  }
-  if (btnControl) {
-    btnControl.classList.toggle("active", !isMonitoreo);
-    btnControl.setAttribute("aria-selected", String(!isMonitoreo));
-  }
-  if (btnMonitoreo) {
-    btnMonitoreo.classList.toggle("active", isMonitoreo);
-    btnMonitoreo.setAttribute("aria-selected", String(isMonitoreo));
-  }
-  if (isMonitoreo && unreadDot) {
+  if (viewName === "monitoreo" && unreadDot) {
     unreadDot.classList.add("d-none");
   }
 }
 
-/**
- * Muestra un punto luminoso en la pestaña MONITOREO cuando llega un evento mientras se está en CONTROL
- */
 export function notifyUnreadMonitoringEvent() {
   const viewMonitoreo = document.getElementById("view-monitoreo");
   const unreadDot = document.getElementById("mon-unread-dot");
@@ -81,9 +83,6 @@ export function setIndicatorState(target, status, labelText) {
   }
 }
 
-/**
- * Muestra un aviso claro al usuario
- */
 export function showErrorBanner(message) {
   const banner = document.getElementById("error-banner");
   const msgSpan = document.getElementById("error-banner-msg");
@@ -93,9 +92,6 @@ export function showErrorBanner(message) {
   banner.classList.remove("d-none");
 }
 
-/**
- * Oculta el banner de aviso
- */
 export function hideErrorBanner() {
   const banner = document.getElementById("error-banner");
   if (banner) {
@@ -103,9 +99,6 @@ export function hideErrorBanner() {
   }
 }
 
-/**
- * Actualiza el indicador del comando actual en CONTROL
- */
 export function updateActiveCommandBadge(commandName, isStop = false) {
   const badge = document.getElementById("active-command-badge");
   if (!badge) return;
@@ -118,9 +111,6 @@ export function updateActiveCommandBadge(commandName, isStop = false) {
   }
 }
 
-/**
- * Actualiza los valores del joystick en pantalla
- */
 export function updateJoystickTelemetry({ angle, distancePercent, directionLabel }) {
   const angleEl = document.getElementById("joy-angle");
   const distEl = document.getElementById("joy-distance");
@@ -132,7 +122,7 @@ export function updateJoystickTelemetry({ angle, distancePercent, directionLabel
 }
 
 /**
- * Renderiza los botones de funciones del vehículo ocupando todo el espacio de su tarjeta
+ * Renderiza dinámicamente los botones de funciones habilitados según el modelo/unidad seleccionada
  */
 export function renderActionButtons(commands, onCommandClick) {
   const grid = document.getElementById("secondary-controls-grid");
@@ -142,7 +132,13 @@ export function renderActionButtons(commands, onCommandClick) {
   grid.innerHTML = "";
 
   if (!commands || commands.length === 0) {
-    grid.innerHTML = `<div class="text-secondary small text-center py-2" style="grid-column: span 12;">Sin funciones adicionales</div>`;
+    if (badge) badge.textContent = "Tracción 4WD";
+    grid.innerHTML = `
+      <div class="mon-table-empty" style="grid-column: span 12; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <i class="bi bi-dpad text-info fs-3 mb-2"></i>
+        <span>Esta unidad opera mediante tracción direccional (Joystick) y secuencias DEMO.</span>
+      </div>
+    `;
     return;
   }
 
@@ -152,7 +148,13 @@ export function renderActionButtons(commands, onCommandClick) {
 
   commands.forEach((cmd, idx) => {
     const meta = resolveCommandMeta(cmd);
-    const spanClass = idx < 4 ? "tile-half" : "tile-third";
+    const total = commands.length;
+    let spanClass = "tile-half";
+    if (total === 7 && idx >= 4) {
+      spanClass = "tile-third";
+    } else if (total % 3 === 0) {
+      spanClass = "tile-third";
+    }
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -162,7 +164,7 @@ export function renderActionButtons(commands, onCommandClick) {
     btn.innerHTML = `
       <span class="action-icon-box"><i class="bi ${meta.icon}"></i></span>
       <span class="action-text-wrap">
-        <span class="action-label">${escapeHtml(cmd.nombre)}</span>
+        <span class="action-label">${escapeHtml(formatCleanCommandName(cmd.nombre))}</span>
         <span class="action-sub">${escapeHtml(meta.category)}</span>
       </span>
     `;
@@ -172,9 +174,6 @@ export function renderActionButtons(commands, onCommandClick) {
   });
 }
 
-/**
- * Resalta brevemente el botón presionado o confirmado
- */
 export function highlightActiveButton(comandoId) {
   const buttons = document.querySelectorAll(".btn-action-cmd");
   buttons.forEach((btn) => {
@@ -187,9 +186,6 @@ export function highlightActiveButton(comandoId) {
   });
 }
 
-/**
- * Llena el selector de secuencias DEMO con nombres limpios
- */
 export function populateDemoSelect(demos) {
   const select = document.getElementById("select-demo");
   if (!select) return;
@@ -207,14 +203,12 @@ export function populateDemoSelect(demos) {
   demos.forEach((demo) => {
     const opt = document.createElement("option");
     opt.value = demo.id;
-    opt.textContent = demo.nombre;
+    const tag = demo.tipo_demo === "PRIVADA" ? " [Privada]" : "";
+    opt.textContent = `${demo.nombre}${tag}`;
     select.appendChild(opt);
   });
 }
 
-/**
- * Actualiza el estado visual de la ejecución DEMO
- */
 export function setDemoProgressUI({ active, stepText = "", percent = 0 }) {
   const container = document.getElementById("demo-progress-container");
   const stepTextEl = document.getElementById("demo-step-text");
@@ -252,9 +246,6 @@ export function setDemoProgressUI({ active, stepText = "", percent = 0 }) {
   }
 }
 
-/**
- * Habilita o deshabilita los botones de funciones durante una DEMO
- */
 export function setControlsDisabled(disabled) {
   document.querySelectorAll(".btn-action-cmd").forEach((btn) => {
     btn.disabled = disabled;
@@ -262,19 +253,28 @@ export function setControlsDisabled(disabled) {
 }
 
 function resolveCommandMeta(cmd) {
-  const code = String(cmd.codigo || "").toUpperCase();
-  if (ICON_MAP[code]) return ICON_MAP[code];
+  const rawName = String(cmd.nombre || "").toUpperCase();
+  if (ICON_MAP[rawName]) return ICON_MAP[rawName];
 
-  const name = String(cmd.nombre || "").toLowerCase();
+  const name = rawName.toLowerCase();
   if (name.includes("cabina") && name.includes("izq")) return ICON_MAP.CABINA_IZQ;
   if (name.includes("cabina") && name.includes("der")) return ICON_MAP.CABINA_DER;
   if (name.includes("bajar")) return ICON_MAP.BAJAR_GARRA;
   if (name.includes("subir")) return ICON_MAP.SUBIR_GARRA;
+  if (name.includes("abrir")) return ICON_MAP.ABRIR_PALA;
+  if (name.includes("cerrar")) return ICON_MAP.CERRAR_PALA;
   if (name.includes("luz")) return ICON_MAP.LUZ;
   if (name.includes("sonido") || name.includes("claxon")) return ICON_MAP.SONIDO;
   if (name.includes("velocidad")) return ICON_MAP.VELOCIDAD;
 
   return { icon: "bi-sliders", variant: "action-cyan", category: "Operación" };
+}
+
+function formatCleanCommandName(name) {
+  return String(name || "")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
 function escapeHtml(str) {
