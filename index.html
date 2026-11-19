@@ -21,7 +21,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
 
   <!-- Estilos personalizados dentro de assets/css -->
-  <link rel="stylesheet" href="./assets/css/style.css?v=1" />
+  <link rel="stylesheet" href="./assets/css/style.css?v=2" />
 </head>
 <body>
   <div class="app-viewport">
@@ -80,28 +80,25 @@
         </button>
       </nav>
 
-      <!-- SELECTOR DE UNIDAD ACTIVA + CAMBIO DE ROL DEMO + SINCRONIZAR -->
+      <!-- SELECTOR DE UNIDAD ACTIVA + ESTADO DE SESIÓN + LOGIN/LOGOUT + SINCRONIZAR -->
       <div class="topbar-actions d-flex align-items-center gap-2">
         <select
           id="active-unit-select"
           class="form-select form-select-sm topbar-select"
           aria-label="Seleccionar unidad física activa"
-          title="Unidad física activa para Control y Monitoreo"
+          title="Unidades autorizadas para tu sesión actual"
         >
-          <option value="1">EXC-001 · Excavadora IoT</option>
+          <option value="2">EXH-002 · Exhibición</option>
         </select>
 
-        <select
-          id="quick-role-select"
-          class="form-select form-select-sm topbar-select role-switcher-select"
-          aria-label="Cambiar rol de prueba"
-          title="Cambiar sesión activa (Rondas de evaluación Admin / Usuario / Invitado)"
-        >
-          <option value="ADMIN_1">Rol: ADMIN (Empresa)</option>
-          <option value="USER_1">Rol: USUARIO 1 (Titular EXC-001)</option>
-          <option value="USER_2">Rol: USUARIO 2 (Sin Unidad #1)</option>
-          <option value="GUEST">Rol: INVITADO (Prospecto)</option>
-        </select>
+        <span id="top-role-pill" class="role-indicator-pill role-invitado d-none d-md-inline-block">
+          INVITADO · Visitante
+        </span>
+
+        <button id="btn-top-auth" type="button" class="btn-reconnect" title="Iniciar o cerrar sesión">
+          <i class="bi bi-person-lock"></i>
+          <span class="btn-reconnect-text">Iniciar Sesión</span>
+        </button>
 
         <button id="btn-refresh-health" type="button" class="btn-reconnect" title="Sincronizar estado, historial y servicios">
           <i class="bi bi-arrow-repeat"></i>
@@ -409,31 +406,39 @@
       <div class="glass-card admin-toolbar-card">
         <div class="admin-subnav-row">
           <div class="admin-subtabs" role="tablist">
-            <button type="button" class="admin-subtab-btn active" data-subtab="dashboard">
+            <button type="button" class="admin-subtab-btn" data-subtab="acceso">
+              <i class="bi bi-person-lock"></i>
+              <span>Acceso / Login</span>
+            </button>
+            <button type="button" class="admin-subtab-btn active" data-subtab="exhibicion">
+              <i class="bi bi-stars"></i>
+              <span>Catálogo de Exhibición</span>
+            </button>
+            <button type="button" class="admin-subtab-btn d-none" data-subtab="dashboard">
               <i class="bi bi-speedometer2"></i>
               <span>Dashboard</span>
             </button>
-            <button type="button" class="admin-subtab-btn" data-subtab="inventario">
+            <button type="button" class="admin-subtab-btn d-none" data-subtab="inventario">
               <i class="bi bi-boxes"></i>
               <span>Modelos y Unidades</span>
             </button>
-            <button type="button" class="admin-subtab-btn" data-subtab="clientes">
+            <button type="button" class="admin-subtab-btn d-none" data-subtab="clientes">
               <i class="bi bi-people-fill"></i>
-              <span>Clientes y Mis Vehículos</span>
+              <span>Mis Vehículos</span>
             </button>
-            <button type="button" class="admin-subtab-btn" data-subtab="demos">
+            <button type="button" class="admin-subtab-btn d-none" data-subtab="demos">
               <i class="bi bi-sliders2"></i>
               <span>Editor Visual de Demos</span>
             </button>
-            <button type="button" class="admin-subtab-btn" data-subtab="exhibicion">
-              <i class="bi bi-stars"></i>
-              <span>Exhibición Invitados y Auditoría</span>
+            <button type="button" class="admin-subtab-btn d-none" data-subtab="auditoria">
+              <i class="bi bi-journal-check"></i>
+              <span>Bitácora de Auditoría</span>
             </button>
           </div>
 
           <div class="admin-session-status">
-            <span id="active-role-badge" class="role-indicator-pill role-admin">ADMIN · Empresa</span>
-            <span id="admin-current-user-label" class="small text-secondary d-none d-xl-inline">Jesús Sergio Quiroz</span>
+            <span id="active-role-badge" class="role-indicator-pill role-invitado">INVITADO · Visitante</span>
+            <span id="admin-current-user-label" class="small text-secondary d-none d-xl-inline">Visitante</span>
             <button type="button" id="btn-test-idor-403" class="btn-admin-action" title="Probar bloqueo BOLA/IDOR sobre unidad ajena (P13)">
               <i class="bi bi-shield-slash"></i> Probar 403 Unidad Ajena
             </button>
@@ -444,95 +449,128 @@
         </div>
       </div>
 
-      <!-- SUB-VISTA 1: DASHBOARD COMERCIAL + RESUMEN DE INVENTARIO -->
-      <div id="admin-subview-dashboard" class="admin-subview">
-        <div class="admin-kpi-grid">
-          <div class="glass-card kpi-card">
-            <span class="kpi-label"><i class="bi bi-Cpu me-1 text-info"></i>MODELOS COMERCIALES</span>
-            <strong id="kpi-modelos" class="kpi-value">2</strong>
-          </div>
-          <div class="glass-card kpi-card">
-            <span class="kpi-label"><i class="bi bi-truck-front me-1 text-info"></i>UNIDADES FÍSICAS</span>
-            <strong id="kpi-unidades" class="kpi-value">2</strong>
-          </div>
-          <div class="glass-card kpi-card">
-            <span class="kpi-label"><i class="bi bi-bag-check me-1 text-success"></i>VENDIDAS / ASIGNADAS</span>
-            <strong id="kpi-vendidas" class="kpi-value text-success">1</strong>
-          </div>
-          <div class="glass-card kpi-card">
-            <span class="kpi-label"><i class="bi bi-display me-1 text-warning"></i>EN EXHIBICIÓN (DEMO)</span>
-            <strong id="kpi-exhibicion" class="kpi-value text-warning">1</strong>
-          </div>
-          <div class="glass-card kpi-card">
-            <span class="kpi-label"><i class="bi bi-person-badge me-1 text-info"></i>CLIENTES COMPRADORES</span>
-            <strong id="kpi-clientes" class="kpi-value">2</strong>
-          </div>
-          <div class="glass-card kpi-card">
-            <span class="kpi-label"><i class="bi bi-play-btn me-1 text-info"></i>SECUENCIAS DEMO</span>
-            <strong id="kpi-demos" class="kpi-value">3</strong>
-          </div>
-        </div>
-
+      <!-- SUB-VISTA 0: INICIO DE SESIÓN CON CREDENCIALES REALES -->
+      <div id="admin-subview-acceso" class="admin-subview d-none">
         <div class="admin-two-col">
-          <!-- Tabla rápida de estado de flota -->
-          <div class="glass-card flex-fill">
-            <div class="card-header-bar">
-              <div class="card-title-group">
-                <span class="header-icon-chip"><i class="bi bi-clipboard-data"></i></span>
-                <span>Estado Comercial de Flota IoT</span>
-              </div>
-              <span class="panel-tag">Tiempo Real RDS</span>
-            </div>
-            <div class="mon-table-wrapper">
-              <table class="mon-table">
-                <thead>
-                  <tr>
-                    <th>Serie</th>
-                    <th>Unidad Física</th>
-                    <th>Estado Comercial</th>
-                    <th>Propietario Titular</th>
-                    <th>Soporte Admin</th>
-                  </tr>
-                </thead>
-                <tbody id="dash-units-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Inicio de sesión manual por credenciales -->
           <div class="glass-card admin-side-panel">
             <div class="card-header-bar">
               <div class="card-title-group">
-                <span class="header-icon-chip chip-emerald"><i class="bi bi-person-lock"></i></span>
-                <span>Autenticación RBAC</span>
+                <span class="header-icon-chip chip-emerald"><i class="bi bi-shield-lock-fill"></i></span>
+                <span>Iniciar Sesión (Compradores y Administradores)</span>
               </div>
             </div>
-            <div class="p-3 d-flex flex-column justify-content-between flex-fill gap-2">
-              <form id="form-manual-login" class="d-flex flex-column gap-2">
+            <div class="p-3 d-flex flex-column justify-content-center flex-fill gap-3">
+              <form id="form-manual-login" class="d-flex flex-column gap-3">
                 <div>
-                  <label class="form-label small text-secondary mb-1">Correo electrónico</label>
-                  <input type="email" id="login-email" class="form-control form-control-sm" value="admin@iot.com" required />
+                  <label class="form-label small text-secondary mb-1">Correo electrónico registrado</label>
+                  <input
+                    type="email"
+                    id="login-email"
+                    class="form-control"
+                    placeholder="Introduce tu correo electrónico"
+                    autocomplete="username"
+                    required
+                  />
                 </div>
                 <div>
                   <label class="form-label small text-secondary mb-1">Contraseña</label>
-                  <input type="password" id="login-password" class="form-control form-control-sm" value="Admin123!" required />
+                  <input
+                    type="password"
+                    id="login-password"
+                    class="form-control"
+                    placeholder="Introduce tu contraseña"
+                    autocomplete="current-password"
+                    required
+                  />
                 </div>
-                <button type="submit" class="btn-demo-start w-100 mt-1">
-                  <i class="bi bi-box-arrow-in-right"></i>
-                  <span>Iniciar Sesión</span>
-                </button>
+                <div class="d-flex gap-2">
+                  <button type="submit" class="btn-demo-start flex-fill py-2">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span>Autenticar en Servidor AWS</span>
+                  </button>
+                  <button type="button" id="btn-logout-panel" class="btn-demo-cancel d-none py-2 px-3">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Cerrar Sesión</span>
+                  </button>
+                </div>
               </form>
+            </div>
+          </div>
 
-              <div class="mon-disclaimer-box mt-auto">
-                <i class="bi bi-info-circle text-info"></i>
+          <div class="glass-card flex-fill">
+            <div class="card-header-bar">
+              <div class="card-title-group">
+                <span class="header-icon-chip"><i class="bi bi-person-vcard-fill"></i></span>
+                <span>Estado de Sesión y Políticas de Acceso RBAC</span>
+              </div>
+            </div>
+            <div class="p-3 d-flex flex-column justify-content-between flex-fill gap-3">
+              <div id="active-session-info-box" class="p-3 rounded border border-secondary bg-dark bg-opacity-50"></div>
+
+              <div class="mon-disclaimer-box">
+                <i class="bi bi-lock-fill text-info"></i>
                 <div>
-                  <div><strong>Cuentas listas para evaluación:</strong></div>
-                  <div>• Admin: <code>admin@iot.com</code> / <code>Admin123!</code></div>
-                  <div>• Comprador 1: <code>comprador1@iot.com</code> / <code>User123!</code></div>
-                  <div>• Comprador 2: <code>comprador2@iot.com</code> / <code>User123!</code></div>
+                  <div><strong>Seguridad por Rol y Propiedad de Recurso:</strong></div>
+                  <div>• <strong>Visitante Público (INVITADO):</strong> Al abrir el enlace sin iniciar sesión, solo tiene acceso de lectura al catálogo público y puede solicitar una prueba temporal sobre unidades marcadas como <code>EXHIBICION</code>.</div>
+                  <div>• <strong>Cliente Comprador (USUARIO):</strong> Requiere correo y contraseña para operar y monitorear exclusivamente las unidades asignadas a su cuenta.</div>
+                  <div>• <strong>Empresa (ADMIN):</strong> Requiere credenciales administrativas para gestionar inventario, clientes, asignaciones y auditoría.</div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-VISTA 1: DASHBOARD COMERCIAL + RESUMEN DE INVENTARIO (SOLO ADMIN) -->
+      <div id="admin-subview-dashboard" class="admin-subview d-none">
+        <div class="admin-kpi-grid">
+          <div class="glass-card kpi-card">
+            <span class="kpi-label"><i class="bi bi-cpu me-1 text-info"></i>MODELOS COMERCIALES</span>
+            <strong id="kpi-modelos" class="kpi-value">0</strong>
+          </div>
+          <div class="glass-card kpi-card">
+            <span class="kpi-label"><i class="bi bi-truck-front me-1 text-info"></i>UNIDADES FÍSICAS</span>
+            <strong id="kpi-unidades" class="kpi-value">0</strong>
+          </div>
+          <div class="glass-card kpi-card">
+            <span class="kpi-label"><i class="bi bi-bag-check me-1 text-success"></i>VENDIDAS / ASIGNADAS</span>
+            <strong id="kpi-vendidas" class="kpi-value text-success">0</strong>
+          </div>
+          <div class="glass-card kpi-card">
+            <span class="kpi-label"><i class="bi bi-display me-1 text-warning"></i>EN EXHIBICIÓN (DEMO)</span>
+            <strong id="kpi-exhibicion" class="kpi-value text-warning">0</strong>
+          </div>
+          <div class="glass-card kpi-card">
+            <span class="kpi-label"><i class="bi bi-person-badge me-1 text-info"></i>CLIENTES COMPRADORES</span>
+            <strong id="kpi-clientes" class="kpi-value">0</strong>
+          </div>
+          <div class="glass-card kpi-card">
+            <span class="kpi-label"><i class="bi bi-play-btn me-1 text-info"></i>SECUENCIAS DEMO</span>
+            <strong id="kpi-demos" class="kpi-value">0</strong>
+          </div>
+        </div>
+
+        <div class="glass-card flex-fill">
+          <div class="card-header-bar">
+            <div class="card-title-group">
+              <span class="header-icon-chip"><i class="bi bi-clipboard-data"></i></span>
+              <span>Estado Comercial de Flota IoT</span>
+            </div>
+            <span class="panel-tag">Tiempo Real RDS</span>
+          </div>
+          <div class="mon-table-wrapper">
+            <table class="mon-table">
+              <thead>
+                <tr>
+                  <th>Serie</th>
+                  <th>Unidad Física</th>
+                  <th>Estado Comercial</th>
+                  <th>Propietario Titular</th>
+                  <th>Soporte Admin</th>
+                </tr>
+              </thead>
+              <tbody id="dash-units-tbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -779,49 +817,48 @@
         </div>
       </div>
 
-      <!-- SUB-VISTA 5: EXHIBICIÓN PÚBLICA DE INVITADOS Y BITÁCORA DE AUDITORÍA -->
-      <div id="admin-subview-exhibicion" class="admin-subview d-none">
-        <div class="admin-two-col">
-          <!-- Catálogo Público «Prueba nuestros vehículos IoT» -->
-          <div class="glass-card admin-side-panel">
-            <div class="card-header-bar">
-              <div class="card-title-group">
-                <span class="header-icon-chip"><i class="bi bi-controller"></i></span>
-                <span>Prueba Nuestros Vehículos IoT</span>
-              </div>
-              <span class="panel-tag">Invitados</span>
+      <!-- SUB-VISTA 5: EXHIBICIÓN PÚBLICA DE INVITADOS -->
+      <div id="admin-subview-exhibicion" class="admin-subview">
+        <div class="glass-card flex-fill">
+          <div class="card-header-bar">
+            <div class="card-title-group">
+              <span class="header-icon-chip"><i class="bi bi-controller"></i></span>
+              <span>Prueba Nuestros Vehículos IoT (Catálogo Público de Exhibición)</span>
             </div>
-            <div class="p-3 overflow-y-auto d-flex flex-column gap-2">
-              <div class="small text-secondary">
-                Reserva una sesión temporal exclusiva de <strong>180 segundos</strong> sobre una unidad de exhibición. Mientras esté reservada, ningún otro usuario podrá moverla simultáneamente.
-              </div>
-              <div id="exhibition-cards-container" class="d-flex flex-column gap-2"></div>
+            <span class="panel-tag">Invitados · Reserva Temporal Exclusiva</span>
+          </div>
+          <div class="p-3 overflow-y-auto d-flex flex-column gap-3">
+            <div class="small text-secondary">
+              Solicita una sesión temporal exclusiva de <strong>180 segundos</strong> sobre una unidad de exhibición disponible. Mientras dure tu turno, ningún otro visitante podrá controlar la misma unidad simultáneamente.
+            </div>
+            <div id="exhibition-cards-container" class="d-grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-VISTA 6: BITÁCORA DE AUDITORÍA (SOLO ADMIN) -->
+      <div id="admin-subview-auditoria" class="admin-subview d-none">
+        <div class="glass-card flex-fill">
+          <div class="card-header-bar">
+            <div class="card-title-group">
+              <span class="header-icon-chip chip-emerald"><i class="bi bi-journal-check"></i></span>
+              <span>Bitácora de Auditoría y Seguridad (Altas, Asignaciones, Demos y Rechazos 401/403/409)</span>
             </div>
           </div>
-
-          <!-- Bitácora de Auditoría de Seguridad -->
-          <div class="glass-card flex-fill">
-            <div class="card-header-bar">
-              <div class="card-title-group">
-                <span class="header-icon-chip chip-emerald"><i class="bi bi-journal-check"></i></span>
-                <span>Bitácora de Auditoría y Seguridad (Altas, Asignaciones, Demos y Rechazos 401/403/409)</span>
-              </div>
-            </div>
-            <div class="mon-table-wrapper">
-              <table class="mon-table">
-                <thead>
-                  <tr>
-                    <th>Hora</th>
-                    <th>Actor / Rol</th>
-                    <th>Acción</th>
-                    <th>Recurso</th>
-                    <th>Resultado</th>
-                    <th>Detalle</th>
-                  </tr>
-                </thead>
-                <tbody id="admin-audit-tbody"></tbody>
-              </table>
-            </div>
+          <div class="mon-table-wrapper">
+            <table class="mon-table">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Actor / Rol</th>
+                  <th>Acción</th>
+                  <th>Recurso</th>
+                  <th>Resultado</th>
+                  <th>Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="admin-audit-tbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -834,6 +871,6 @@
   </div>
 
   <!-- Lógica modular ES6 dentro de assets/js -->
-  <script type="module" src="./assets/js/app.js?v=1"></script>
+  <script type="module" src="./assets/js/app.js?v=2"></script>
 </body>
 </html>

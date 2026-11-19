@@ -32,12 +32,11 @@ Sistema web integral y responsivo (*Mobile First* · *Zero-Scroll*) para la come
 
 ## 2. Modelo de Roles y Autorización por Recurso (RBAC + BOLA/IDOR)
 
-| Rol Comercial | Cuenta de Prueba | Credenciales | Permisos y Restricciones Verificadas en FastAPI |
-| :--- | :--- | :--- | :--- |
-| **ADMINISTRADOR** *(Empresa)* | `admin@iot.com` | `Admin123!` | Gestiona Dashboard, modelos, unidades, clientes, asignaciones, demos de fábrica y auditoría. Solo puede enviar comandos a unidades **VENDIDAS** si el comprador tiene activo `soporte_autorizado = 1`. |
-| **USUARIO 1** *(Comprador Titular)* | `comprador1@iot.com` | `User123!` | Opera, monitorea y crea demos privadas únicamente sobre sus unidades asignadas (`EXC-001`). Recibe `403 Forbidden` si intenta consultar u operar unidades ajenas o entrar al Dashboard administrativo. |
-| **USUARIO 2** *(Comprador 2)* | `comprador2@iot.com` | `User123!` | Cuenta para validación de aislamiento BOLA/IDOR: recibe `403 Forbidden` al intentar consultar o mover la unidad `EXC-001` de `comprador1@iot.com`. |
-| **INVITADO** *(Prospecto)* | Acceso público / Reserva temporal | Sin contraseña permanente | Explora el catálogo de exhibición y solicita una sesión temporal exclusiva (`180 s`) sobre unidades en estado `EXHIBICION` (`EXH-002`). Recibe `403 Forbidden` en unidades vendidas, comandos avanzados o rutas administrativas. |
+| Rol Comercial | Modo de Autenticación | Permisos y Restricciones Verificadas en FastAPI |
+| :--- | :--- | :--- |
+| **ADMINISTRADOR** *(Empresa)* | Correo y contraseña (`Bearer Token` HMAC-SHA256) | Gestiona Dashboard, modelos, unidades, clientes, asignaciones, demos de fábrica y auditoría. Solo puede enviar comandos a unidades **VENDIDAS** si el comprador tiene activo `soporte_autorizado = 1`. |
+| **USUARIO** *(Comprador Titular)* | Correo y contraseña (`Bearer Token` HMAC-SHA256) | Opera, monitorea y crea demos privadas únicamente sobre sus unidades asignadas. Recibe `403 Forbidden` si intenta consultar u operar unidades ajenas (`BOLA/IDOR`) o entrar al Dashboard administrativo. |
+| **INVITADO** *(Prospecto)* | Acceso público / Reserva temporal (`GUEST Token`) | Por defecto al entrar al enlace público: explora el catálogo de exhibición y solicita una sesión temporal exclusiva (`180 s`) sobre unidades en estado `EXHIBICION`. Recibe `403 Forbidden` en unidades vendidas, comandos avanzados o rutas administrativas. |
 
 ---
 

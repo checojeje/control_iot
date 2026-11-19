@@ -1,7 +1,7 @@
 /**
  * @file api.js
  * @description Cliente REST con Fetch y async/await para CONTROL (4.1), MONITOREO (4.2) y ADMINISTRACIÓN (4.3).
- * Incluye autenticación Bearer, encabezados de rol, cambio dinámico de unidad activa y manejo de códigos 401/403/409.
+ * Por defecto inicia sin privilegios (rol INVITADO); para acceder como USUARIO o ADMIN requiere Login real.
  */
 
 const isLocalHost =
@@ -13,27 +13,23 @@ export const CONFIG = {
   LOCAL_FALLBACK_URL: "http://127.0.0.1:8000",
   WS_BASE_URL: "wss://api-iot-sergio.duckdns.org/ws/vehiculo",
   LOCAL_WS_BASE_URL: "ws://127.0.0.1:8000/ws/vehiculo",
-  VEHICULO_ID: 1,
+  VEHICULO_ID: 2, // Por defecto apunta a unidad de exhibición hasta que un comprador o admin inicie sesión
   MAX_HISTORY_ROWS: 10,
   TIMEOUT_MS: 10000,
   AUTH_TOKEN: null,
-  CURRENT_ROLE: "ADMIN", // ADMIN | USUARIO | INVITADO
+  CURRENT_ROLE: "INVITADO", // INVITADO por defecto al entrar al enlace público
   CURRENT_USER: {
-    id_usuario: 1,
-    nombre: "Jesús Sergio Quiroz (Admin Empresa)",
-    email: "admin@iot.com",
-    rol: "ADMIN",
+    id_usuario: null,
+    nombre: "Visitante (Invitado)",
+    email: "",
+    rol: "INVITADO",
   },
   GUEST_SESSION: null,
   USE_LOCAL_BACKEND: false,
 };
 
-// Cola secuencial para garantizar orden de movimientos sin abortar peticiones en vuelo
 let movementQueuePromise = Promise.resolve();
 
-/**
- * Cambia la unidad física activa para CONTROL, MONITOREO y WebSocket
- */
 export function setActiveVehicleId(newId) {
   const num = Number(newId);
   if (Number.isInteger(num) && num > 0) {
@@ -41,27 +37,53 @@ export function setActiveVehicleId(newId) {
   }
 }
 
-/**
- * Obtiene la URL WebSocket de la unidad actualmente seleccionada
- */
 export function getActiveWsUrl() {
   const base = CONFIG.USE_LOCAL_BACKEND ? CONFIG.LOCAL_WS_BASE_URL : CONFIG.WS_BASE_URL;
   return `${base}/${CONFIG.VEHICULO_ID}`;
 }
 
-/**
- * Configura la sesión autenticada actual (Admin, Usuario o Invitado)
- */
 export function setAuthSession({ token = null, user = null, role = "INVITADO", guestSession = null }) {
   CONFIG.AUTH_TOKEN = token;
   CONFIG.CURRENT_ROLE = role;
-  CONFIG.CURRENT_USER = user;
+  CONFIG.CURRENT_USER = user || {
+    id_usuario: null,
+    nombre: "Visitante (Invitado)",
+    email: "",
+    rol: "INVITADO",
+  };
   CONFIG.GUEST_SESSION = guestSession;
+
+  try {
+    if (token && role !== "INVITADO") {
+      sessionStorage.setItem(
+        "iot_auth_session",
+        JSON.stringify({ token, user: CONFIG.CURRENT_USER, role })
+      );
+    } else {
+      sessionStorage.removeItem("iot_auth_session");
+    }
+  } catch (_) {
+    // Ignorar errores de storage
+  }
 }
 
-/**
- * Realiza una petición HTTP con timeout controlado, autenticación RBAC y validación JSON.
- */
+export function restoreSavedSession() {
+  try {
+    const raw = sessionStorage.getItem("iot_auth_session");
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.token && parsed.role) {
+      CONFIG.AUTH_TOKEN = parsed.token;
+      CONFIG.CURRENT_ROLE = parsed.role;
+      CONFIG.CURRENT_USER = parsed.user;
+      return true;
+    }
+  } catch (_) {
+    // Ignorar
+  }
+  return false;
+}
+
 async function fetchWithTimeout(endpoint, options = {}, customSignal = null) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
@@ -100,7 +122,6 @@ async function fetchWithTimeout(endpoint, options = {}, customSignal = null) {
         headers,
       });
     } catch (networkErr) {
-      // Si estamos en localhost y el servidor remoto AWS está apagado, usar FastAPI local en 127.0.0.1:8000
       if (isLocalHost && !CONFIG.USE_LOCAL_BACKEND) {
         response = await fetch(`${CONFIG.LOCAL_FALLBACK_URL}${endpoint}`, {
           ...options,
@@ -151,9 +172,6 @@ async function fetchWithTimeout(endpoint, options = {}, customSignal = null) {
   }
 }
 
-/* ==========================================================================
-   SERVICIOS DE SALUD E INFRAESTRUCTURA (4.1 / 4.2 / 4.3)
-   ========================================================================== */
 export async function checkApiHealth() {
   try {
     const data = await fetchWithTimeout(`/openapi.json`);
@@ -174,7 +192,6 @@ export async function checkRdsHealth() {
     );
     return { ok, data };
   } catch (err) {
-    // Si devuelve 403 por cambio de rol, RDS sí está disponible (respondió desde BD)
     if (err?.status === 403 || err?.status === 401) {
       return { ok: true, restricted: true };
     }
@@ -182,9 +199,6 @@ export async function checkRdsHealth() {
   }
 }
 
-/* ==========================================================================
-   SERVICIOS DE CONTROL Y MONITOREO POR UNIDAD (4.1 / 4.2)
-   ========================================================================== */
 export async function fetchVehicleInfo(vehiculoId = CONFIG.VEHICULO_ID) {
   return await fetchWithTimeout(`/api/vehiculos/${vehiculoId}`);
 }
@@ -281,9 +295,6 @@ export async function startDemoOnBackend(demoId, vehiculoId = CONFIG.VEHICULO_ID
   });
 }
 
-/* ==========================================================================
-   SERVICIOS DE AUTENTICACIÓN, ROLES Y ADMINISTRACIÓN COMERCIAL (4.3)
-   ========================================================================== */
 export async function loginUser(email, password) {
   return await fetchWithTimeout(`/api/auth/login`, {
     method: "POST",
@@ -395,9 +406,6 @@ export async function saveCompleteDemo(payload) {
   });
 }
 
-/**
- * Prueba explícita de acceso a un recurso específico (para validar rechazos 401/403 en P12/P13)
- */
 export async function testCrossVehicleAccess(targetVehiculoId) {
   return await fetchWithTimeout(`/api/vehiculos/${targetVehiculoId}/estado`, {
     method: "GET",

@@ -4,8 +4,8 @@
  * Soporta cambio dinámico de unidad física cancelando la suscripción anterior.
  */
 
-import { CONFIG, getActiveWsUrl } from "./api.js?v=1";
-import { setIndicatorState } from "./ui.js?v=1";
+import { CONFIG, getActiveWsUrl } from "./api.js?v=2";
+import { setIndicatorState } from "./ui.js?v=2";
 
 export class VehicleWebSocket {
   constructor({ onEventCallback, onOpenCallback, onReconnectCallback }) {

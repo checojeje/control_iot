@@ -1,18 +1,14 @@
 /**
  * @file admin.js
- * @description Módulo de ADMINISTRACIÓN COMERCIAL MULTIUSUARIO (Práctica 4.3):
- * - Gestión de sesiones y 3 roles comerciales: ADMINISTRADOR (empresa), USUARIO (comprador), INVITADO (prospecto).
- * - Dashboard comercial con métricas reales de Amazon RDS.
- * - CRUD de Modelos comerciales, Unidades físicas, Clientes compradores y Asignación de propietarios.
- * - Panel «Mis Vehículos» con interruptor de autorización de soporte técnico sobre unidades vendidas.
- * - Editor Visual de Demos (agregar, quitar, reordenar pasos ▲/▼, validar tiempos y persistir en RDS).
- * - Catálogo público «Prueba nuestros vehículos IoT» con sesión temporal de reserva exclusiva y temporizador.
- * - Bitácora de Auditoría y laboratorio de pruebas de seguridad (401 / 403 / 409).
+ * @description Módulo de ADMINISTRACIÓN COMERCIAL MULTIUSUARIO (Práctica 4.3).
+ * Cualquier visitante que entra al link público ingresa como INVITADO sin privilegios.
+ * Para acceder como USUARIO comprador o ADMINISTRADOR es obligatorio autenticarse con correo y contraseña.
  */
 
 import {
   CONFIG,
   setAuthSession,
+  restoreSavedSession,
   loginUser,
   requestGuestSession,
   releaseGuestSession,
@@ -30,17 +26,17 @@ import {
   fetchAuthorizedDemosWithSteps,
   saveCompleteDemo,
   testCrossVehicleAccess,
-} from "./api.js?v=1";
+} from "./api.js?v=2";
 
-import { parseBackendTimestamp } from "./datetime.js?v=1";
-import { showErrorBanner, hideErrorBanner } from "./ui.js?v=1";
+import { parseBackendTimestamp } from "./datetime.js?v=2";
+import { showErrorBanner, hideErrorBanner } from "./ui.js?v=2";
 
 export class AdminManager {
   constructor({ onUnitChanged, onDemosUpdated }) {
     this.onUnitChanged = onUnitChanged;
     this.onDemosUpdated = onDemosUpdated;
 
-    this.activeSubTab = "dashboard";
+    this.activeSubTab = "acceso";
     this.models = [];
     this.units = [];
     this.clients = [];
@@ -54,12 +50,35 @@ export class AdminManager {
 
   async init() {
     this.bindAdminEvents();
-    // Iniciar por defecto con la cuenta Administrador para tener visibilidad completa al abrir
-    await this.quickSwitchRole("ADMIN_1", true);
+
+    // Si había una sesión iniciada en esta pestaña la restaura; de lo contrario entra como INVITADO público
+    const restored = restoreSavedSession();
+    if (!restored) {
+      setAuthSession({
+        token: null,
+        role: "INVITADO",
+        user: { id_usuario: null, nombre: "Visitante (Invitado)", rol: "INVITADO" },
+        guestSession: null,
+      });
+    }
+
+    this.updateRoleBadgeUI();
+    await this.refreshAllAdminData();
+
+    if (this.units.length > 0 && typeof this.onUnitChanged === "function") {
+      this.onUnitChanged(this.units[0].id_vehiculo);
+    }
+
+    if (CONFIG.CURRENT_ROLE === "ADMIN") {
+      this.switchSubTab("dashboard");
+    } else if (CONFIG.CURRENT_ROLE === "USUARIO") {
+      this.switchSubTab("clientes");
+    } else {
+      this.switchSubTab("exhibicion");
+    }
   }
 
   bindAdminEvents() {
-    // Sub-pestañas dentro de ADMINISTRACIÓN
     document.querySelectorAll(".admin-subtab-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const sub = btn.dataset.subtab;
@@ -67,11 +86,26 @@ export class AdminManager {
       });
     });
 
-    // Selector rápido de Roles (Admin, Comprador 1, Comprador 2, Invitado) en la barra superior
-    const roleSelect = document.getElementById("quick-role-select");
-    if (roleSelect) {
-      roleSelect.addEventListener("change", (e) => {
-        this.quickSwitchRole(e.target.value, false);
+    // Botón superior de Iniciar Sesión / Cerrar Sesión
+    const btnTopAuth = document.getElementById("btn-top-auth");
+    if (btnTopAuth) {
+      btnTopAuth.addEventListener("click", async () => {
+        if (CONFIG.AUTH_TOKEN && CONFIG.CURRENT_ROLE !== "INVITADO") {
+          // Cerrar sesión y regresar a modo INVITADO público
+          await this.performLogout();
+        } else {
+          // Abrir pestaña de Inicio de Sesión dentro de Administración
+          document.getElementById("tab-btn-administracion")?.click();
+          this.switchSubTab("acceso");
+          document.getElementById("login-email")?.focus();
+        }
+      });
+    }
+
+    const btnLogoutPanel = document.getElementById("btn-logout-panel");
+    if (btnLogoutPanel) {
+      btnLogoutPanel.addEventListener("click", async () => {
+        await this.performLogout();
       });
     }
 
@@ -86,7 +120,7 @@ export class AdminManager {
       });
     }
 
-    // Formulario de Login Manual
+    // Formulario de Login Real con Correo y Contraseña
     const formLogin = document.getElementById("form-manual-login");
     if (formLogin) {
       formLogin.addEventListener("submit", async (e) => {
@@ -147,7 +181,7 @@ export class AdminManager {
       });
     }
 
-    // Botones de Pruebas de Seguridad (P12 / P13 / P14)
+    // Botones de Pruebas de Seguridad (P12 / P13)
     const btnTestIdor = document.getElementById("btn-test-idor-403");
     if (btnTestIdor) {
       btnTestIdor.addEventListener("click", () => this.runSecurityTestIdor());
@@ -164,45 +198,9 @@ export class AdminManager {
     }
   }
 
-  /**
-   * Cambia entre las 4 sesiones demostrativas para validar Rondas A, B y C en equipo
-   */
-  async quickSwitchRole(presetKey, silent = false) {
-    hideErrorBanner();
-
+  async performLogin(email, password) {
     try {
-      if (presetKey === "ADMIN_1") {
-        await this.performLogin("admin@iot.com", "Admin123!", silent);
-      } else if (presetKey === "USER_1") {
-        await this.performLogin("comprador1@iot.com", "User123!", silent);
-      } else if (presetKey === "USER_2") {
-        await this.performLogin("comprador2@iot.com", "User123!", silent);
-      } else if (presetKey === "GUEST") {
-        this.stopGuestTimer();
-        setAuthSession({
-          token: null,
-          role: "INVITADO",
-          user: { id_usuario: null, nombre: "Invitado (Prospecto Comercial)", rol: "INVITADO" },
-          guestSession: null,
-        });
-        this.updateRoleBadgeUI();
-        await this.refreshAllAdminData();
-        // Si estamos en Invitado, llevarlo a la pestaña de Exhibición o seleccionar unidad de exhibición
-        const exhUnit = this.units.find((u) => u.estado_comercial === "EXHIBICION");
-        if (exhUnit && typeof this.onUnitChanged === "function") {
-          this.onUnitChanged(exhUnit.id_vehiculo);
-        }
-        this.switchSubTab("exhibicion");
-      }
-    } catch (err) {
-      if (!silent) {
-        showErrorBanner(`Error al cambiar de rol: ${err?.message || "Verifica conexión"}`);
-      }
-    }
-  }
-
-  async performLogin(email, password, silent = false) {
-    try {
+      hideErrorBanner();
       this.stopGuestTimer();
       const res = await loginUser(email, password);
       setAuthSession({
@@ -212,10 +210,12 @@ export class AdminManager {
         guestSession: null,
       });
 
+      const pwdInput = document.getElementById("login-password");
+      if (pwdInput) pwdInput.value = "";
+
       this.updateRoleBadgeUI();
       await this.refreshAllAdminData();
 
-      // Seleccionar automáticamente la primera unidad autorizada del usuario
       if (this.units.length > 0 && typeof this.onUnitChanged === "function") {
         this.onUnitChanged(this.units[0].id_vehiculo);
       }
@@ -226,47 +226,96 @@ export class AdminManager {
         this.switchSubTab("clientes");
       }
     } catch (err) {
-      if (!silent) {
-        showErrorBanner(err?.message || "Credenciales incorrectas");
-      }
+      showErrorBanner(err?.message || "Credenciales incorrectas");
     }
+  }
+
+  async performLogout() {
+    hideErrorBanner();
+    if (CONFIG.GUEST_SESSION) {
+      await this.handleReleaseGuestSession(false);
+      return;
+    }
+
+    this.stopGuestTimer();
+    setAuthSession({
+      token: null,
+      role: "INVITADO",
+      user: { id_usuario: null, nombre: "Visitante (Invitado)", rol: "INVITADO" },
+      guestSession: null,
+    });
+
+    this.updateRoleBadgeUI();
+    await this.refreshAllAdminData();
+
+    if (this.units.length > 0 && typeof this.onUnitChanged === "function") {
+      this.onUnitChanged(this.units[0].id_vehiculo);
+    }
+
+    this.switchSubTab("exhibicion");
   }
 
   updateRoleBadgeUI() {
     const roleBadge = document.getElementById("active-role-badge");
-    const roleSelect = document.getElementById("quick-role-select");
+    const topRoleBadge = document.getElementById("top-role-pill");
+    const btnTopAuth = document.getElementById("btn-top-auth");
+    const btnLogoutPanel = document.getElementById("btn-logout-panel");
     const userLabel = document.getElementById("admin-current-user-label");
+    const activeSessionCard = document.getElementById("active-session-info-box");
+
     const role = CONFIG.CURRENT_ROLE;
     const user = CONFIG.CURRENT_USER;
+    const isLogged = Boolean(CONFIG.AUTH_TOKEN && role !== "INVITADO");
+
+    const roleNames = {
+      ADMIN: "ADMIN · Empresa",
+      USUARIO: "USUARIO · Comprador",
+      INVITADO: CONFIG.GUEST_SESSION ? "INVITADO · Prueba Activa" : "INVITADO · Visitante",
+    };
+    const labelText = roleNames[role] || role;
 
     if (roleBadge) {
       roleBadge.className = `role-indicator-pill role-${role.toLowerCase()}`;
-      const roleNames = {
-        ADMIN: "ADMIN · Empresa",
-        USUARIO: "USUARIO · Comprador",
-        INVITADO: CONFIG.GUEST_SESSION ? "INVITADO · Reserva Activa" : "INVITADO · Catálogo",
-      };
-      roleBadge.textContent = roleNames[role] || role;
+      roleBadge.textContent = labelText;
+    }
+    if (topRoleBadge) {
+      topRoleBadge.className = `role-indicator-pill role-${role.toLowerCase()}`;
+      topRoleBadge.textContent = labelText;
+    }
+
+    if (btnTopAuth) {
+      if (isLogged) {
+        btnTopAuth.innerHTML = `<i class="bi bi-box-arrow-right"></i><span class="btn-reconnect-text">Cerrar Sesión</span>`;
+        btnTopAuth.classList.add("btn-logout-mode");
+      } else {
+        btnTopAuth.innerHTML = `<i class="bi bi-person-lock"></i><span class="btn-reconnect-text">Iniciar Sesión</span>`;
+        btnTopAuth.classList.remove("btn-logout-mode");
+      }
+    }
+
+    if (btnLogoutPanel) {
+      btnLogoutPanel.classList.toggle("d-none", !isLogged);
     }
 
     if (userLabel) {
-      userLabel.textContent = user ? `${user.nombre} (${role})` : "Invitado Comercial";
+      userLabel.textContent = user ? `${user.nombre}` : "Visitante";
     }
 
-    if (roleSelect) {
-      if (role === "ADMIN") roleSelect.value = "ADMIN_1";
-      else if (role === "USUARIO" && user?.email === "comprador2@iot.com") roleSelect.value = "USER_2";
-      else if (role === "USUARIO") roleSelect.value = "USER_1";
-      else roleSelect.value = "GUEST";
+    if (activeSessionCard) {
+      activeSessionCard.innerHTML = isLogged
+        ? `<div class="text-success fw-bold"><i class="bi bi-patch-check-fill me-1"></i>Sesión autenticada activa</div>
+           <div class="small text-light mt-1">Usuario: <strong>${escapeHtml(user?.nombre)}</strong> (${escapeHtml(user?.email)})</div>
+           <div class="small text-info">Rol autorizado por FastAPI: <strong>${escapeHtml(role)}</strong></div>`
+        : `<div class="text-warning fw-bold"><i class="bi bi-person-badge me-1"></i>Modo Visitante Público (INVITADO)</div>
+           <div class="small text-secondary mt-1">Actualmente navegas como prospecto. Solo puedes consultar el catálogo de exhibición o iniciar sesión con tu cuenta de Comprador o Administrador.</div>`;
     }
 
-    // Mostrar/ocultar sub-pestañas según el rol pero dejar visible el botón de pruebas de seguridad
     const isAdmin = role === "ADMIN";
     const isUser = role === "USUARIO";
 
     document.querySelectorAll(".admin-subtab-btn").forEach((btn) => {
       const sub = btn.dataset.subtab;
-      if (sub === "dashboard" || sub === "inventario") {
+      if (sub === "dashboard" || sub === "inventario" || sub === "auditoria") {
         btn.classList.toggle("d-none", !isAdmin);
       } else if (sub === "clientes") {
         btn.classList.toggle("d-none", !(isAdmin || isUser));
@@ -277,7 +326,6 @@ export class AdminManager {
       }
     });
 
-    // Ocultar formulario de alta de clientes si el rol es USUARIO
     const adminClientsBlock = document.getElementById("admin-only-clients-block");
     if (adminClientsBlock) {
       adminClientsBlock.classList.toggle("d-none", !isAdmin);
@@ -297,9 +345,6 @@ export class AdminManager {
     });
   }
 
-  /**
-   * Sincroniza datos de Administración, Unidades Autorizadas, Modelos, Clientes y Auditoría
-   */
   async refreshAllAdminData() {
     try {
       const [modelsList, unitsList] = await Promise.all([
@@ -325,19 +370,18 @@ export class AdminManager {
           this.renderClientsTable(this.clients);
           this.renderAuditTable(this.auditLogs);
           this.populateUnitFormSelects();
+          this.renderUnitsInventoryTable(this.units);
         }
-      } else {
-        const logs = await fetchAuditLog().catch(() => []);
-        if (logs.length > 0) this.renderAuditTable(logs);
       }
 
-      // Cargar comandos y demos en el Editor Visual para la unidad seleccionada
-      this.populateEditorUnitSelect(unitsList);
-      if (unitsList.length > 0) {
-        await this.loadEditorCommandsAndDemos(CONFIG.VEHICULO_ID);
+      if (CONFIG.CURRENT_ROLE === "ADMIN" || CONFIG.CURRENT_ROLE === "USUARIO") {
+        this.populateEditorUnitSelect(unitsList);
+        if (unitsList.length > 0) {
+          await this.loadEditorCommandsAndDemos(CONFIG.VEHICULO_ID);
+        }
       }
     } catch (_) {
-      // Silenciar si hay restricción parcial de rol
+      // Silenciar si hay restricción de rol
     }
   }
 
@@ -552,10 +596,6 @@ export class AdminManager {
     });
   }
 
-  /**
-   * Renderiza la sección «Mis Vehículos» para el Comprador (y Administrador)
-   * Incluye el switch de autorización de soporte técnico sobre unidades vendidas
-   */
   renderMyVehiclesCards(units) {
     const container = document.getElementById("my-vehicles-container");
     if (!container) return;
@@ -633,9 +673,6 @@ export class AdminManager {
     });
   }
 
-  /* ==========================================================================
-     EDITOR VISUAL DE DEMOS (PASOS ORDENADOS + PERSISTENCIA RDS)
-     ========================================================================== */
   populateEditorUnitSelect(units) {
     const sel = document.getElementById("editor-unit-select");
     if (!sel) return;
@@ -680,7 +717,7 @@ export class AdminManager {
         this.renderEditorStepsList();
       }
     } catch (_) {
-      // Ignorar si la unidad no es accesible para el rol actual
+      // Ignorar
     }
   }
 
@@ -846,10 +883,7 @@ export class AdminManager {
     }
   }
 
-  /* ==========================================================================
-     EXHIBICIÓN COMERCIAL PARA INVITADOS + TEMPORIZADOR DE RESERVA EXCLUSIVA
-     ========================================================================== */
-  renderExhibitionCatalog(units, models) {
+  renderExhibitionCatalog(units) {
     const container = document.getElementById("exhibition-cards-container");
     if (!container) return;
     container.innerHTML = "";
@@ -894,8 +928,8 @@ export class AdminManager {
           <input
             type="text"
             class="form-control form-control-sm guest-name-input"
-            placeholder="Tu nombre (Invitado)"
-            value="${escapeHtml(CONFIG.CURRENT_USER?.nombre || "Prospecto Invitado")}"
+            placeholder="Escribe tu nombre para reservar prueba"
+            value="${escapeHtml(CONFIG.GUEST_SESSION?.nombre_invitado || "")}"
           />
           <button
             type="button"
@@ -915,7 +949,8 @@ export class AdminManager {
           document.getElementById("tab-btn-control")?.click();
           return;
         }
-        await this.handleStartGuestSession(u.id_vehiculo, nameInp?.value || "Invitado Comercial");
+        const guestName = (nameInp?.value || "").trim() || "Prospecto Invitado";
+        await this.handleStartGuestSession(u.id_vehiculo, guestName);
       });
 
       container.appendChild(card);
@@ -942,7 +977,6 @@ export class AdminManager {
       }
 
       await this.refreshAllAdminData();
-      // Llevar al invitado directamente a CONTROL para que pruebe el vehículo reservado
       document.getElementById("tab-btn-control")?.click();
     } catch (err) {
       showErrorBanner(err?.message || "No se pudo reservar la unidad de exhibición");
@@ -1000,7 +1034,7 @@ export class AdminManager {
     setAuthSession({
       token: null,
       role: "INVITADO",
-      user: { id_usuario: null, nombre: "Invitado (Sesión Finalizada)", rol: "INVITADO" },
+      user: { id_usuario: null, nombre: "Visitante (Invitado)", rol: "INVITADO" },
       guestSession: null,
     });
     this.updateRoleBadgeUI();
@@ -1011,9 +1045,6 @@ export class AdminManager {
     }
   }
 
-  /* ==========================================================================
-     ALTAS CRUD Y AUDITORÍA
-     ========================================================================== */
   async handleCreateModel() {
     const nombre_modelo = document.getElementById("model-name-input")?.value || "";
     const categoria = document.getElementById("model-cat-input")?.value || "Maquinaria IoT";
@@ -1063,7 +1094,7 @@ export class AdminManager {
     const nombre = document.getElementById("client-name-input")?.value || "";
     const email = document.getElementById("client-email-input")?.value || "";
     const telefono = document.getElementById("client-phone-input")?.value || "";
-    const password = document.getElementById("client-pwd-input")?.value || "User123!";
+    const password = document.getElementById("client-pwd-input")?.value || "";
 
     try {
       hideErrorBanner();
@@ -1106,15 +1137,11 @@ export class AdminManager {
     });
   }
 
-  /* ==========================================================================
-     LABORATORIO DE PRUEBAS DE SEGURIDAD (P12 / P13 / BOLA-IDOR)
-     ========================================================================== */
   async runSecurityTestIdor() {
-    // Intenta consultar/operar una unidad ajena (ej. Unidad #1 desde Comprador 2 o Invitado, o Unidad #2 desde Comprador 1)
     const targetVid = CONFIG.CURRENT_ROLE === "USUARIO" && CONFIG.VEHICULO_ID === 1 ? 2 : 1;
     try {
       await testCrossVehicleAccess(targetVid);
-      showErrorBanner(`Prueba P13: Acceso permitido a Unidad #${targetVid} porque tu rol actual (${CONFIG.CURRENT_ROLE}) es titular o Administrador.`);
+      showErrorBanner(`Acceso autorizado a Unidad #${targetVid} porque tu sesión actual (${CONFIG.CURRENT_ROLE}) tiene permiso.`);
     } catch (err) {
       showErrorBanner(`Bloqueo BOLA/IDOR Verificado (${err?.status || 403}): ${err?.message}`);
     }
@@ -1123,7 +1150,7 @@ export class AdminManager {
   async runSecurityTestAdminAccess() {
     try {
       await fetchAdminDashboard();
-      showErrorBanner("Prueba P12: Acceso concedido a Dashboard porque tu sesión actual tiene rol ADMIN.");
+      showErrorBanner("Acceso concedido a Dashboard porque has iniciado sesión como ADMIN.");
     } catch (err) {
       showErrorBanner(`Rechazo RBAC Verificado (${err?.status || 403}): ${err?.message}`);
     }
